@@ -1,0 +1,21 @@
+#
+# IGNORE LIST FOR IAR EWARM
+#
+*/SmartManual Docs/
+*/@Work/
+*/Debug/
+*/reference/
+*/settings/
+*.mtpj
+*.rcpe
+*.log
+*.ewt
+*.ewd
+*.dep
+;LabVIEW
+*/builds/
+*.aliases
+*.lvlps
+*.lvproj
+*.ini
+
