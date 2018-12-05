@@ -170,8 +170,8 @@ float	kiASR = 0.015;	/* 積分ゲイン 5[rad/s] 2018.4.16 変更*/
 float	kpASR_2 = 0.55;
 float	kiASR_2 = 0.015;/* 積分ゲイン 5[rad/s] 2018.4.16 変更*/
 /******************************/
-float	dN_HI_P = 0.001;	/* 加速レイト 5000 5.0  0.000112.0*/
-float	dN_HI_N = 0.001;	/* 減速レイト 5000 5.0  0.000112.0*/
+float	dN_HI_P = 0.1;	/* 加速レイト 5000 5.0  0.000112.0*/
+float	dN_HI_N = 0.1;	/* 減速レイト 5000 5.0  0.000112.0*/
 //float	dN_HI_P = (5000*0.00005)/10.0;	/* 加速レイト 5000[rpm]に達する時間 0.5s =0.0025
 //float	dN_HI_N = (5000*0.00005)/10.0;	/* 減速レイト 5000[rpm]に達する時間 0.5s*/
 //float	dN_HI_P = (8000*0.00005)/10.0;	/* 加速レイト 8000[rpm]に達する時間 0.5s =0.04
@@ -264,7 +264,7 @@ float	dTH_hole = 0.0; /* ホール信号との補正位相 ω1・ΔTic  */
 unsigned char  HUVW;/* サンプリング開始時のHole ICの状態 */
 unsigned char  V_MODE = 1;/* PWMモード */
 unsigned char  TH_sin_on = 1;/* Y150814 位相補間オン */
-unsigned char  S6_MODE = 1;/* 0: -sin, 1:6step, 2:+sin */
+unsigned char  S6_MODE = 1,S5_MODE=1;/* 0: -sin, 1:6step, 2:+sin */
 
 float	Vdc0 = 0.0;   /* d軸電圧指令 */
 float	Vqc0 = 0.0;   /* q軸電圧指令 */
@@ -1304,14 +1304,14 @@ void  int_carrier_m1(void)
     /* ボリュームの電圧 */
 
     if(fabs(s_LPF_N)>10) {
-        kpACR = 0.00015;	//0.55
-        kiACR = 0.0000005;//0.0001;//0.0001
+        kpACR = 0.00015;//0.00015	
+	kiACR = 0.0000005;//0.0000005
         kpASR = 0.003;//0.0008 Speed
         kiASR = 0.0002;// 0.00001;
-        LPF_ad_1=0.025;//0.025
+        LPF_ad_1=0.25;//0.025
         Power1=0.055;//PowerP;
-        kpPLL = 10.0;
-        kiPLL =0.002;
+        kpPLL = 40.0;//10
+        kiPLL =0.02;//0.002
 
     }
     else {
@@ -1635,7 +1635,7 @@ void  int_carrier_m1(void)
     }
     else/* 逆転 */
     {
-        Nrpm_s = -Nrpm;  //+ aki 1202 -
+        Nrpm_s = -Nrpm;  // aki 1202 -
     }
     /* 速度フィルタ */
 #if 0
@@ -1657,9 +1657,11 @@ void  int_carrier_m1(void)
     /* Hole IC PLL  */
     if(	TC_FLG == 1)  /* キャプチャ発生時の速度領域 */
     {
+#if 1
         if(s_LPF_N > NRPM_MIN)  /* 正転 */
         {
             S6_MODE = 2;/* 0: -sin, 1:6step, 2:+sin */
+	    S5_MODE=S6_MODE;
         }
         else
         {
@@ -1670,9 +1672,12 @@ void  int_carrier_m1(void)
             else  /* 零付近ウロウロ */
             {
                 S6_MODE = 1;/* 0: -sin, 1:6step, 2:+sin */
+		S5_MODE=S6_MODE;
                 //I_ref_q_ini=Start;//0603
             }
         }
+#endif
+
         //if(vr1_ad>0.05)
         //{
         // サンプル開始までのずれ角計算定数 cdt_P=cTr2/cIMCLK_FRQ/1000000; cTr2=64; IMCLK_FRQ=96[MHz]
@@ -1766,7 +1771,7 @@ void  int_carrier_m1(void)
         break;
     }
 
-    if((S6_MODE == 2)&&(TC_FLG == 1))
+    if((S5_MODE == 2)&&(TC_FLG == 1))//S6_MODE
     {
         switch (V_MODE)
         {
@@ -1807,7 +1812,7 @@ void  int_carrier_m1(void)
     }
     else {}
 
-    if((S6_MODE == 0)&&(TC_FLG == 1))
+    if((S5_MODE == 0)&&(TC_FLG == 1))////S6_MODE
     {
         switch (V_MODE)
         {
@@ -1863,6 +1868,7 @@ void  int_carrier_m1(void)
                 break;
             case 3:
                 TH_hole = 0.0;//   //0.0
+		S6_MODE=S5_MODE;
                 break;
             case 4:
                 TH_hole = DEG060N; //60
@@ -1891,6 +1897,7 @@ void  int_carrier_m1(void)
                 break;
             case 3:
                 TH_hole = 0.0;     //300
+		S6_MODE=S5_MODE;
                 break;
             case 4:
                 TH_hole = DEG060N; //0
@@ -2121,6 +2128,15 @@ void  int_carrier_m1(void)
             else {}
             Nrpm_ref = Nref0;
             Nerr = Nrpm_ref- Nrpm_s;//- 12 02 2018
+	    
+	    if(Nerr>=10){
+		 Nerr=10;  
+	    }
+	    else{}
+	    if(Nerr<-10){
+		 Nerr=-10;   
+	    }
+	    else{}
 	   
        // }
       /*  else {}
@@ -2180,30 +2196,33 @@ void  int_carrier_m1(void)
     /* ASRのPI制御 */
     /* ----------- */
     s_kiASR += kiASR*Nerr;
-    if(s_kiASR > I1_LIM)
+    if(s_kiASR >I1_LIM )//I1_LIM
     {
         s_kiASR = I1_LIM;
     }
     else
     {
-        if(s_kiASR < (-I1_LIM))
+        if(s_kiASR < -I1_LIM)
         {
             s_kiASR = -I1_LIM;
         } else {}
+	
+	
     }
 
     I_ref_ASR = s_kiASR + kpASR*Nerr;
 
-    if(I_ref_ASR > I1_LIM)
+    if(I_ref_ASR > I1_LIM)//I1_LIM
     {
-        I_ref_ASR = I1_LIM;
+        I_ref_ASR = I1_LIM;//I1_LIM;
     }
     else
     {
-        if(I_ref_ASR < (-I1_LIM))
+       if(I_ref_ASR < (-I1_LIM))
         {
             I_ref_ASR = -I1_LIM;
         } else {}
+	
     }
 
     /* ASRの初期値 */
@@ -2662,7 +2681,7 @@ void	int_carrier_m2(void)
     /* ボリュームの電圧 */
     //vr2_ad_2 = -((an103 - 2000.0)/4096.0)*power2;	// @@ 17400602
 
-    if(fabs(s_LPF_N_2)>9) {
+    if(fabs(s_LPF_N_2)>2) {
         kpACR_2 = 0.55;	//0.0002
         kiACR_2 = 0.0001;       //0.0005
         kpASR_2 = 0.0008;//Speed0.0005
