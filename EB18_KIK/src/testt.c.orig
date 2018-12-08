@@ -66,7 +66,7 @@ unsigned short cngs=1;
 
 float   fy=0,fx=0,fya=0,fxa=0,fyi=1600,fxi=2200;
 float   fy_2=0,fx_2=0,fya_2=0,fxa_2=0,fyi_2=1600,fxi_2=2000;
-float vr2_adi,Rotatei,vr2_adi_2,Rotatei_2,LPF_ad_1=0.005,LPF_ad_2=0.005;
+float vr2_adi,Rotatei,vr2_adi_2,Rotatei_2,LPF_ad_1=0.001,LPF_ad_2=0.001;
 volatile int iu,iv,iw;
 /******Current CTL at mode*****/
 /*float Start=5.5;//0.7
@@ -637,26 +637,26 @@ unsigned char UVW_in(void)
       temp8 = (temp8+temp8) + U_in();
     }*/
 #if 0
-    if(vr2_ad<-jth) { //||(Rotate<-0.1)){//vr1_ad  0604
+    if(vr2_ad<=0) { //||(Rotate<-0.1)){//vr1_ad  0604-jth
         temp8 = U_in();                //U
         temp8 = (temp8+temp8) + W_in();//W
         temp8 = (temp8+temp8) + V_in();//V
     }
     else {}
-    if(vr2_ad>jth) { //||(Rotate>0.1)){ //vr1_ad  0604
+    if(vr2_ad>0) { //||(Rotate>0.1)){ //vr1_ad  0604 jth
         temp8 = W_in();                 //W
         temp8 = (temp8+temp8) + V_in(); //V
         temp8 = (temp8+temp8) + U_in(); //U
     }
     else {}
 #else
-        temp8 = W_in();                 //W
-        temp8 = (temp8+temp8) + V_in(); //V
-        temp8 = (temp8+temp8) + U_in(); //U
-        
-        temp8 = TbUVW[temp8];
-        
-    if(vr2_ad<-jth) { 
+    temp8 = W_in();                 //W
+    temp8 = (temp8+temp8) + V_in(); //V
+    temp8 = (temp8+temp8) + U_in(); //U
+
+    temp8 = TbUVW[temp8];
+
+    if(R_DR==1) {
         temp8 = ((temp8 + 2) % 6) + 1;
     }
     else {}
@@ -857,10 +857,10 @@ void H_Init(void)
 
     // 12bit ADC				// 			@***** S
     S12AD0.ADCSR.BYTE  = 0x2C;			// MOTOR-1 cycle scan mode　clock=OCLK
-   // S12AD0.ADANS.WORD  = 0x3707;		// MOTOR-1 OPA_EN= AN000,AN001,AN002
+    // S12AD0.ADANS.WORD  = 0x3707;		// MOTOR-1 OPA_EN= AN000,AN001,AN002
     S12AD0.ADANS.WORD  = 0x3000;
     S12AD1.ADCSR.BYTE  = 0x2C;			// MOTOR-2 cycle scan mode　clock=OCLKmode
-   // S12AD1.ADANS.WORD  = 0x3707;		// MOTOR-2 OPA_EN= AN100,AN101,AN102
+    // S12AD1.ADANS.WORD  = 0x3707;		// MOTOR-2 OPA_EN= AN100,AN101,AN102
     S12AD1.ADANS.WORD  = 0x3000;
 
     S12AD0.ADPG.BIT.PG000GAIN = 14;		// MOTOR-1  Gain = x5 14
@@ -939,8 +939,8 @@ void work_init_m1(void)
 
     S6_MODE = 1; //1
     S5_MODE=1;
-    S6_MODE_p = 1; 
-    
+    S6_MODE_p = 1;
+
     THdcPLL = THdc;
     s_kiPLL = 0.0;
     s_kiACR_d = 0.0;
@@ -1005,7 +1005,7 @@ void work_init_m2(void)
     Rot_2=0;
     Nref0_2=0;
     I_err_d=0;
-    
+
 }
 
 void main(void)
@@ -1051,23 +1051,23 @@ void main(void)
 void Period_Motor1(void)
 {
     count1s = countc1;
-     TC_cnt_Hole=count1s;
-   // if(cflag1 == 1) {
-      /*  if((count1s - count1p)>65535) {//65535
-           cflag1 = 0;
-            t_cnt = 1;
-        }
-        else {*/
-            t_cnt = count1s - count1p;
-	    if(t_cnt>300){
-		    t_cnt=300;
-    
-	    }
-        //}
-   /* }
-    else {
-        cflag1 = 1;
-    }*/
+    TC_cnt_Hole=count1s;
+    // if(cflag1 == 1) {
+    /*  if((count1s - count1p)>65535) {//65535
+         cflag1 = 0;
+          t_cnt = 1;
+      }
+      else {*/
+    t_cnt = count1s - count1p;
+    if(t_cnt>300) {
+        t_cnt=300;
+
+    }
+    //}
+    /* }
+     else {
+         cflag1 = 1;
+     }*/
     count1p = count1s;
     Nrpm = (float)(cNrpm_P / t_cnt);	// cNrpm_P=60/cPole*96000000/cTr2; @@ 180528
 }
@@ -1081,7 +1081,7 @@ void  int_carrier_m1(void)
 {
     ICU.IR[0x5A].BIT.IR=0; //0601
     //TC_cnt_Ts = MTU0.TCNT;		// MTU0のカウンタ値	// @*****
-      TC_cnt_Ts = countc1;
+    TC_cnt_Ts = countc1;
 
 
     /* ------------------ */
@@ -1111,11 +1111,12 @@ void  int_carrier_m1(void)
         s_kiACR_q = 0.0;
 
         Nrpm_ref = 0.0;
-
+        jth=0.06;
     }
     else
     {
         DRV_sts = 3;
+        jth=0.03;
     }
 
     /* -------------------- */
@@ -1166,17 +1167,17 @@ void  int_carrier_m1(void)
     }
 
     /* 相電流 */
-  //  iu_ad  = -((float)(an000 - 2048))/(4096.0f) - offset_u;/* 3000 */
-  //  iv_ad  = -((float)(an102 - 2048))/(4096.0f) - offset_v;/* 3000 */
-  //  iw_ad  = -((float)(an001 - 2048))/(4096.0f) - offset_w;/* 3000 */
-    
+    //  iu_ad  = -((float)(an000 - 2048))/(4096.0f) - offset_u;/* 3000 */
+    //  iv_ad  = -((float)(an102 - 2048))/(4096.0f) - offset_v;/* 3000 */
+    //  iw_ad  = -((float)(an001 - 2048))/(4096.0f) - offset_w;/* 3000 */
+
     iu_ad  = -((float)(an000 - 2048))/(57.344f*4) - offset_u;
     iv_ad  = -((float)(an102 - 2048))/(57.344f*4) - offset_v;
     iw_ad  = -((float)(an001 - 2048))/(57.344f*4) - offset_w;
-    
-  //  iu=(1000 * Iqc0);
-   
-    
+
+    //  iu=(1000 * Iqc0);
+
+
     vr2_adi=((an103-fyi)/ydiv);
     Rotatei =((an003-fxi)/xdiv);
 
@@ -1191,6 +1192,7 @@ void  int_carrier_m1(void)
     B0=PORTD.PORT.BIT.B2;//B0
     B1=PORTD.PORT.BIT.B3;//B1
     jiro=PORTD.PORT.BIT.B5;//jiro
+#if 0
 //if((Rot==0)){
     if(vr2_ad<-jth) {
         if(((F0==0)&&(F1==0))) {
@@ -1269,7 +1271,7 @@ void  int_carrier_m1(void)
     }
 //}
 //else{}
-
+#endif
     /******************jiro*******************/
 
     /*   if((jiro==1)&&(cngs==0)){
@@ -1291,61 +1293,61 @@ void  int_carrier_m1(void)
         if((Rotate<(jthr-0.0))&&(Rotate>-(jthr-0.0))) {   // 追加　0609 0.02
 
             pth=0;
-            jth=0.06;
+            //jth=0.06;
 
-          /*  if((Rot==1)&&(jNorm==0)) {
-                DRV_sts = 0;
-                DRV_sts_2 = 0;
-            }
-            else {}*/
+            /*  if((Rot==1)&&(jNorm==0)) {
+                  DRV_sts = 0;
+                  DRV_sts_2 = 0;
+              }
+              else {}*/
 
             work_init_m1();
             PORTB.DR.BIT.B6=0;
-           // Nref1=0;
+            // Nref1=0;
 
 
-         /*   kpACR =0;// 0.0665;
-            kiACR =0;// 0.00165;
-            kpASR =0;//0.084;	
-            kiASR =0;//0.0015;
-           // Power1=0;
-            cngs=1;
-            jiro=0;
-           // PowerP=0;*/
+            /*   kpACR =0;// 0.0665;
+               kiACR =0;// 0.00165;
+               kpASR =0;//0.084;
+               kiASR =0;//0.0015;
+              // Power1=0;
+               cngs=1;
+               jiro=0;
+              // PowerP=0;*/
         }
         else {
             PORTB.DR.BIT.B6=1;
-	    Nref1=cNref1;
+            Nref1=cNref1;
         }
     }
     else {
         PORTB.DR.BIT.B6=1;   //Inverter En
-	Nref1=cNref1;
+        Nref1=cNref1;
     }
 
     /***************************************************************/
 //      initm1=1;
     /* ボリュームの電圧 */
 
-   // if(fabs(s_LPF_N)>9) {
-        kpACR = 0.0015;//0.00015	
-	kiACR = 0.0000005;//0.0000005
-        kpASR = 0.08;//0.0008 Speed
-        kiASR = 0.002;// 0.00001;
-        LPF_ad_1=0.025;//0.025
-        Power1=0.083333;//PowerP;
-        kpPLL = 40.0;//10
-        kiPLL =0.02;//0.002
+    // if(fabs(s_LPF_N)>9) {
+    kpACR = 0.0015;//0.00015
+    kiACR = 0.0000005;//0.0000005
+    kpASR = 0.08;//0.0008 Speed
+    kiASR = 0.002;// 0.00001;
+    LPF_ad_1=0.025;//0.025
+    Power1=0.083333;//PowerP;
+    kpPLL = 40.0;//10
+    kiPLL =0.02;//0.002
 
-  /*  }
-    else {
-        kpACR=0.0015;//0.55;
-        kiACR=0.000005;//0.0001;
-        kpASR =0.08;// kpASR_2+0.01;//Speed
-        kiASR =0.002;// kiASR_2+0.002;
-        LPF_ad_1=0.03;//0.001
-        Power1=0.083333;//Power1+0.00011;
-    }*/
+    /*  }
+      else {
+          kpACR=0.0015;//0.55;
+          kiACR=0.000005;//0.0001;
+          kpASR =0.08;// kpASR_2+0.01;//Speed
+          kiASR =0.002;// kiASR_2+0.002;
+          LPF_ad_1=0.03;//0.001
+          Power1=0.083333;//Power1+0.00011;
+      }*/
 
 
     /********************************************************************/
@@ -1409,482 +1411,511 @@ void  int_carrier_m1(void)
 
     //  Rot=0;
     //  vr1_ad=vr2_ad*(0.5 + Rotate);
-     vr1_ad=vr2_ad;
-    //vr1_ad=(vr2_ad-Rotate)*Lp;//vr2_ad + Rotate;
-    //      }
-    //   else{}
+    if(fabs(vr2_ad) > jth) {
+        if(vr2_ad > 0) {
+            R_DR = 0;      // CW
+            vr1_ad = vr2_ad - jth;
+            if(vr1_ad < 0) {
+                vr1_ad = 0;
+            }
+        }
+        else {
+            R_DR = 1;
+            vr1_ad = vr2_ad + jth;
+            if(vr1_ad > 0) {
+                vr1_ad = 0;
+            }
+        }
+    }
+        else {
+            vr1_ad = 0;
+        }
 
-
-    /* if((vr2_ad>jth)&&(jNorm==1)){  // 1st wheel Back
-
-            vr1_ad=(vr2_ad)/dp1;
-    	Rot=0;
-    	//jth=0.03;
-         if(Rotate>jthx){  //Right Back
-
-    	  vr1_ad=vr2_ad/dp1+(Rotate)/dpr1;
-         }
-         else{}
-
-         if(Rotate<-jthx){ //Left Back
-
-    	   vr1_ad=vr2_ad/dp1+(Rotate)/dpr1;
-
-         }
-         else{}
-
-     }
-     else{ }//0612
-
-     if((vr2_ad<-jth)&&(jNorm==1)){ // 1st wheel Forward hidari
-    	   Rot=0;
-         vr1_ad=(vr2_ad)/dp1;
-
-      if(Rotate>jthx){  //Rigtht Forward
-    	vr1_ad=vr2_ad/dp1-(Rotate)/dpr1;
+        /*  if(vr2_ad>jth){
+          vr1_ad=vr2_ad-jth;
           }
-      else{}
+          else{ vr1_ad=0;}
 
-     if(Rotate<-jthx){  //Left Forward
-    	  vr1_ad=vr2_ad/dp1-(Rotate)/dpr1;
+          if(vr2_ad<-jth){
+          vr1_ad=vr2_ad+jth;
+          }
+          else{ vr1_ad=0;}*/
+
+        //vr1_ad=(vr2_ad-Rotate)*Lp;//vr2_ad + Rotate;
+        //      }
+        //   else{}
+
+
+        /* if((vr2_ad>jth)&&(jNorm==1)){  // 1st wheel Back
+
+                vr1_ad=(vr2_ad)/dp1;
+        	Rot=0;
+        	//jth=0.03;
+             if(Rotate>jthx){  //Right Back
+
+        	  vr1_ad=vr2_ad/dp1+(Rotate)/dpr1;
+             }
+             else{}
+
+             if(Rotate<-jthx){ //Left Back
+
+        	   vr1_ad=vr2_ad/dp1+(Rotate)/dpr1;
+
+             }
+             else{}
 
          }
-      else{}
+         else{ }//0612
 
+         if((vr2_ad<-jth)&&(jNorm==1)){ // 1st wheel Forward hidari
+        	   Rot=0;
+             vr1_ad=(vr2_ad)/dp1;
+
+          if(Rotate>jthx){  //Rigtht Forward
+        	vr1_ad=vr2_ad/dp1-(Rotate)/dpr1;
+              }
+          else{}
+
+         if(Rotate<-jthx){  //Left Forward
+        	  vr1_ad=vr2_ad/dp1-(Rotate)/dpr1;
+
+             }
+          else{}
+
+            }
+         else{}*/
+
+        /***********************************************************************/
+        /* if(power<1.5)
+         {
+         power=power+0.001;//+0.001;//0.0005
+         }*/
+
+        /*if(vr1_ad>=0.35){
+        vr1_ad=0.35;
         }
-     else{}*/
+        else{}
+        if(vr1_ad<=-0.35){
+        vr1_ad=-0.35;
+        }
+        else{}*/
 
-    /***********************************************************************/
-    /* if(power<1.5)
-     {
-     power=power+0.001;//+0.001;//0.0005
-     }*/
-
-    /*if(vr1_ad>=0.35){
-    vr1_ad=0.35;
-    }
-    else{}
-    if(vr1_ad<=-0.35){
-    vr1_ad=-0.35;
-    }
-    else{}*/
-
-    /*****************************************************************************/
-    /* ****************** */
-    /* Iuvw -> dq座標変換 */
-    /* ****************** */
-    /* 電流は谷割込みのみ有効 */
-    if(YT_cnt == 1)  /*  */
-    {
-        /* UVW -> αβ */
-        Iac0 = 0.816496580928*(iu_ad - 0.5*(iv_ad + iw_ad));
-        /* ↑Iα=sqrt(2/3)*{Iu-(Iv+Iw)/2} */
-        Ibc0 = 0.7071067811866*(iv_ad - iw_ad);
-        /* ↑Iβ=sqrt(1/2)*(Iv-Iw) */
-
-        if((PLL_ON == 1)&&(S6_MODE != 1))
+        /*****************************************************************************/
+        /* ****************** */
+        /* Iuvw -> dq座標変換 */
+        /* ****************** */
+        /* 電流は谷割込みのみ有効 */
+        if(YT_cnt == 1)  /*  */
         {
-            SIN0 = sin(THdcPLL);/**/
-            COS0 = cos(THdcPLL);/**/
+            /* UVW -> αβ */
+            Iac0 = 0.816496580928*(iu_ad - 0.5*(iv_ad + iw_ad));
+            /* ↑Iα=sqrt(2/3)*{Iu-(Iv+Iw)/2} */
+            Ibc0 = 0.7071067811866*(iv_ad - iw_ad);
+            /* ↑Iβ=sqrt(1/2)*(Iv-Iw) */
+
+            if((PLL_ON == 1)&&(S6_MODE != 1))
+            {
+                SIN0 = sin(THdcPLL);/**/
+                COS0 = cos(THdcPLL);/**/
+            }
+            else
+            {
+                SIN0 = sin(THdc);/**/
+                COS0 = cos(THdc);/**/
+            }
+
+            /* αβ -> dq */
+            Idc0 = Iac0*COS0 +Ibc0*SIN0;  //  +
+            Iqc0 =  -Iac0*SIN0 + Ibc0*COS0; //  -
         }
-        else
-        {
-            SIN0 = sin(THdc);/**/
-            COS0 = cos(THdc);/**/
-        }
+        else {}
 
-        /* αβ -> dq */
-        Idc0 = Iac0*COS0 +Ibc0*SIN0;  //  +
-        Iqc0 =  -Iac0*SIN0 + Ibc0*COS0; //  -
-    }
-    else {}
-    
-    iu=(int)(1000 * Iqc0);//2018
-    s_LPF_id0 += (Idc0 - s_LPF_id0)*k_LPF_id0;
-    s_LPF_iq0 += (Iqc0 - s_LPF_iq0)*k_LPF_iq0;
+        iu=(int)(1000 * Iqc0);//2018
+        s_LPF_id0 += (Idc0 - s_LPF_id0)*k_LPF_id0;
+        s_LPF_iq0 += (Iqc0 - s_LPF_iq0)*k_LPF_iq0;
 
 
-    /* *********************************************** */
-    /* [ 1 ] 速度検出↓ */
-    /* *********************************************** */
-    /* MTU0.TGRDにキャプチャ発生 */
-    /*MTI0.TGRAにキャプチャ発生 */
+        /* *********************************************** */
+        /* [ 1 ] 速度検出↓ */
+        /* *********************************************** */
+        /* MTU0.TGRDにキャプチャ発生 */
+        /*MTI0.TGRAにキャプチャ発生 */
 
 #if  1
-    if(MTU0.TSR.BIT.TGFA == 1)                   //0606 D
-    {
-        MTU0.TSR.BIT.TGFA = 0;			// @@ 180528 0606D
-	TC_FLG = 1;
-        Period_Motor1();
-    }
-#else
-    if(MTU0.TSR.BIT.TGFA == 1)                   //0606 D
-    {
-        MTU0.TSR.BIT.TGFA = 0;			// @@ 180528 0606D
-
-        TC_cnt_3A = MTU0.TGRA;                 // @@ 180526 0606 D
-        //TC_cnt_3A = MTU3.TGRA;		// 0526
-        //MTU3.TSR.BIT.TGFD = 0;
-        TC_FLG = 1;  /* キャプチャ発生フラグ */
-        TC_cnt_Hole = TC_cnt_3A;/**/
-        t_cnt = TC_cnt_3A - TC_cnt_3A_1;
-
-
-         if(t_cnt>=cNrpm_P/kdiv) {
-                     t_cnt=cNrpm_P;
-                 }
-                 else {}
-        // Nrpm = (cNrpm_P/2/t_cnt*2)
-        // cNrpm_P = 60 * cIMCLK_FRQ * 1000000. / cTr2 * 1000 / cPole); cPole=8;cTr2=64;
-        Nrpm = (float)(cNrpm_P / t_cnt);	// cNrpm_P=60/cPole*96000000/cTr2; @@ 180528
-        //Nrpm = (float)(9000000 / t_cnt);	// P=10	60/10*96000000/64 @*****
-        //Nrpm = (float)(11250000 / t_cnt);	// P=8	60/8*96000000/64 @*****
-        if( ((Nrpm-Nrpm_1)<EMR_DRPM) && ((Nrpm-Nrpm_1)>(-EMR_DRPM)) )
-        {   /* 速度異常 */
-            Nrpm_1 = Nrpm;
-        }
-        else
+        if(MTU0.TSR.BIT.TGFA == 1)                   //0606 D
         {
-            Nrpm = Nrpm_1;
+            MTU0.TSR.BIT.TGFA = 0;			// @@ 180528 0606D
+            TC_FLG = 1;
+            Period_Motor1();
         }
-
-        TC_cnt_3A_1 = TC_cnt_3A;
-    }
- else{}
-    
-#endif
-
-    /* MTU0.TGRCにキャプチャ発生 */
-    /* MTU0.TGRDにキャプチャ発生 */
-#if 1
-    if(MTU0.TSR.BIT.TGFD == 1)			// @@ 180526 0606 C
-    {
-        MTU0.TSR.BIT.TGFD = 0;			// @@ 180526 0606 C
-	TC_FLG = 1;
-        Period_Motor1();
-	 
-    }
 #else
-    if(MTU0.TSR.BIT.TGFD == 1)			// @@ 180526 0606 C
-    {
-        TC_cnt_3C = MTU0.TGRD;			// @@ 180526 0606 C
-        MTU0.TSR.BIT.TGFD = 0;			// @@ 180526 0606 C
-        //TC_cnt_3C = MTU3.TGRC;
-        //MTU3.TSR.BIT.TGFC = 0;
+        if(MTU0.TSR.BIT.TGFA == 1)                   //0606 D
+        {
+            MTU0.TSR.BIT.TGFA = 0;			// @@ 180528 0606D
 
-        TC_FLG = 1;  /* キャプチャ発生フラグ */
-        TC_cnt_Hole = TC_cnt_3C;/**/
+            TC_cnt_3A = MTU0.TGRA;                 // @@ 180526 0606 D
+            //TC_cnt_3A = MTU3.TGRA;		// 0526
+            //MTU3.TSR.BIT.TGFD = 0;
+            TC_FLG = 1;  /* キャプチャ発生フラグ */
+            TC_cnt_Hole = TC_cnt_3A;/**/
+            t_cnt = TC_cnt_3A - TC_cnt_3A_1;
 
-        t_cnt = TC_cnt_3C - TC_cnt_3C_1;
-        if(t_cnt<1) {
-            t_cnt=1;
+
+            if(t_cnt>=cNrpm_P/kdiv) {
+                t_cnt=cNrpm_P;
+            }
+            else {}
+            // Nrpm = (cNrpm_P/2/t_cnt*2)
+            // cNrpm_P = 60 * cIMCLK_FRQ * 1000000. / cTr2 * 1000 / cPole); cPole=8;cTr2=64;
+            Nrpm = (float)(cNrpm_P / t_cnt);	// cNrpm_P=60/cPole*96000000/cTr2; @@ 180528
+            //Nrpm = (float)(9000000 / t_cnt);	// P=10	60/10*96000000/64 @*****
+            //Nrpm = (float)(11250000 / t_cnt);	// P=8	60/8*96000000/64 @*****
+            if( ((Nrpm-Nrpm_1)<EMR_DRPM) && ((Nrpm-Nrpm_1)>(-EMR_DRPM)) )
+            {   /* 速度異常 */
+                Nrpm_1 = Nrpm;
+            }
+            else
+            {
+                Nrpm = Nrpm_1;
+            }
+
+            TC_cnt_3A_1 = TC_cnt_3A;
         }
         else {}
-          if(t_cnt>=cNrpm_P/kdiv) {
-              t_cnt=cNrpm_P;
-          }
-          else {}
-        // Nrpm = (cNrpm_P/2/t_cnt*2)
-        // cNrpm_P = 60 * cIMCLK_FRQ * 1000000. / cTr2 * 1000 / cPole); cPole=8;cTr2=64;
-        Nrpm = (float)(cNrpm_P / t_cnt);	// cNrpm_P=60/cPole*96000000/cTr2; @@ 180528
-        //Nrpm = (float)(9000000 / t_cnt);	// P=10	60/10*96000000/64 @*****
-        //Nrpm = (float)(11250000 / t_cnt);	// P=8	60/8*96000000/64 @*****
 
-        if( ((Nrpm-Nrpm_1)<EMR_DRPM) && ((Nrpm-Nrpm_1)>(-EMR_DRPM)) )
-        {   /* 速度異常 */
-            Nrpm_1 = Nrpm;
-        }
-        else
-        {
-            Nrpm = Nrpm_1;
-        }
-
-        TC_cnt_3C_1 = TC_cnt_3C;
-    }
-    else {}
 #endif
-    /* MTU0.TGRAにキャプチャ発生 */
-    /* MTU0.TGRCにキャプチャ発生 */
+
+        /* MTU0.TGRCにキャプチャ発生 */
+        /* MTU0.TGRDにキャプチャ発生 */
 #if 1
-    if(MTU0.TSR.BIT.TGFC == 1)			// @@ 180526 0606 A
-    {
-        MTU0.TSR.BIT.TGFC = 0;			// @@ 180526 0606 A
-	TC_FLG = 1;
-        Period_Motor1();
-    }
+        if(MTU0.TSR.BIT.TGFD == 1)			// @@ 180526 0606 C
+        {
+            MTU0.TSR.BIT.TGFD = 0;			// @@ 180526 0606 C
+            TC_FLG = 1;
+            Period_Motor1();
+
+        }
 #else
-    if(MTU0.TSR.BIT.TGFC == 1)			// @@ 180526 0606 A
-    {
-        TC_cnt_1A = MTU0.TGRC;			// @@ 180526 0606 A
-        MTU0.TSR.BIT.TGFC = 0;			// @@ 180526 0606 A
+        if(MTU0.TSR.BIT.TGFD == 1)			// @@ 180526 0606 C
+        {
+            TC_cnt_3C = MTU0.TGRD;			// @@ 180526 0606 C
+            MTU0.TSR.BIT.TGFD = 0;			// @@ 180526 0606 C
+            //TC_cnt_3C = MTU3.TGRC;
+            //MTU3.TSR.BIT.TGFC = 0;
 
-        TC_FLG = 1;  /* キャプチャ発生フラグ */
-        TC_cnt_Hole = TC_cnt_1A;/**/
+            TC_FLG = 1;  /* キャプチャ発生フラグ */
+            TC_cnt_Hole = TC_cnt_3C;/**/
 
-        t_cnt = TC_cnt_1A - TC_cnt_1A_1;
-        //t_cnt = TC_cnt_1A_1 - TC_cnt_1A;
-        if(t_cnt<1) {
-            t_cnt=1;
+            t_cnt = TC_cnt_3C - TC_cnt_3C_1;
+            if(t_cnt<1) {
+                t_cnt=1;
+            }
+            else {}
+            if(t_cnt>=cNrpm_P/kdiv) {
+                t_cnt=cNrpm_P;
+            }
+            else {}
+            // Nrpm = (cNrpm_P/2/t_cnt*2)
+            // cNrpm_P = 60 * cIMCLK_FRQ * 1000000. / cTr2 * 1000 / cPole); cPole=8;cTr2=64;
+            Nrpm = (float)(cNrpm_P / t_cnt);	// cNrpm_P=60/cPole*96000000/cTr2; @@ 180528
+            //Nrpm = (float)(9000000 / t_cnt);	// P=10	60/10*96000000/64 @*****
+            //Nrpm = (float)(11250000 / t_cnt);	// P=8	60/8*96000000/64 @*****
+
+            if( ((Nrpm-Nrpm_1)<EMR_DRPM) && ((Nrpm-Nrpm_1)>(-EMR_DRPM)) )
+            {   /* 速度異常 */
+                Nrpm_1 = Nrpm;
+            }
+            else
+            {
+                Nrpm = Nrpm_1;
+            }
+
+            TC_cnt_3C_1 = TC_cnt_3C;
         }
         else {}
-         if(t_cnt>=cNrpm_P/kdiv) {
-             t_cnt=cNrpm_P;
-         }
-         else {}
-
-        // Nrpm = (cNrpm_P/2/t_cnt*2)
-        // cNrpm_P = 60 * cNrpm_PcIMCLK_FRQ * 1000000. / cTr2 * 1000 / cPole); cPole=8;cTr2=64;
-        Nrpm = (float)(cNrpm_P / t_cnt);	// cNrpm_P=60/cPole*96000000/cTr2; @@ 180528
-        //Nrpm = (float)(9000000 / t_cnt);	// P=10	60/10*96000000/64 @*****
-        //Nrpm = (float)(11250000 / t_cnt);	// P=8	60/8*96000000/64 @*****
-        //kaiten=(float)(cNrpm_P / t_cnt);
-
-        if( ((Nrpm-Nrpm_1)<EMR_DRPM) && ((Nrpm-Nrpm_1)>(-EMR_DRPM)) )
-        {   /* 速度異常 */
-            Nrpm_1 = Nrpm;
-        }
-        else
-        {
-            Nrpm = Nrpm_1;
-        }
-
-        TC_cnt_1A_1 = TC_cnt_1A;
-    }
-    else {}
 #endif
-    /* 正転，逆転のチェック */
-    if(R_DR==1)/* 正転 */
-    {
-        Nrpm_s = Nrpm; //+ 1202
-    }
-    else/* 逆転 */
-    {
-        Nrpm_s = -Nrpm;  // aki 1202 -
-	 
-    }
-    /* 速度フィルタ */
+        /* MTU0.TGRAにキャプチャ発生 */
+        /* MTU0.TGRCにキャプチャ発生 */
+#if 1
+        if(MTU0.TSR.BIT.TGFC == 1)			// @@ 180526 0606 A
+        {
+            MTU0.TSR.BIT.TGFC = 0;			// @@ 180526 0606 A
+            TC_FLG = 1;
+            Period_Motor1();
+        }
+#else
+        if(MTU0.TSR.BIT.TGFC == 1)			// @@ 180526 0606 A
+        {
+            TC_cnt_1A = MTU0.TGRC;			// @@ 180526 0606 A
+            MTU0.TSR.BIT.TGFC = 0;			// @@ 180526 0606 A
+
+            TC_FLG = 1;  /* キャプチャ発生フラグ */
+            TC_cnt_Hole = TC_cnt_1A;/**/
+
+            t_cnt = TC_cnt_1A - TC_cnt_1A_1;
+            //t_cnt = TC_cnt_1A_1 - TC_cnt_1A;
+            if(t_cnt<1) {
+                t_cnt=1;
+            }
+            else {}
+            if(t_cnt>=cNrpm_P/kdiv) {
+                t_cnt=cNrpm_P;
+            }
+            else {}
+
+            // Nrpm = (cNrpm_P/2/t_cnt*2)
+            // cNrpm_P = 60 * cNrpm_PcIMCLK_FRQ * 1000000. / cTr2 * 1000 / cPole); cPole=8;cTr2=64;
+            Nrpm = (float)(cNrpm_P / t_cnt);	// cNrpm_P=60/cPole*96000000/cTr2; @@ 180528
+            //Nrpm = (float)(9000000 / t_cnt);	// P=10	60/10*96000000/64 @*****
+            //Nrpm = (float)(11250000 / t_cnt);	// P=8	60/8*96000000/64 @*****
+            //kaiten=(float)(cNrpm_P / t_cnt);
+
+            if( ((Nrpm-Nrpm_1)<EMR_DRPM) && ((Nrpm-Nrpm_1)>(-EMR_DRPM)) )
+            {   /* 速度異常 */
+                Nrpm_1 = Nrpm;
+            }
+            else
+            {
+                Nrpm = Nrpm_1;
+            }
+
+            TC_cnt_1A_1 = TC_cnt_1A;
+        }
+        else {}
+#endif
+        /* 正転，逆転のチェック */
+        if(R_DR==1)/* 正転 */
+        {
+            Nrpm_s = Nrpm; //+ 1202
+        }
+        else/* 逆転 */
+        {
+            Nrpm_s = -Nrpm;  // aki 1202 -
+
+        }
+        /* 速度フィルタ */
 #if 0
-    s_LPF_N= Nrpm_s;
-    s_LPF_N2= Nrpm_s;
+        s_LPF_N= Nrpm_s;
+        s_LPF_N2= Nrpm_s;
 #else
- 
-    s_LPF_N += (Nrpm_s - s_LPF_N )*k_LPF_N;
-    s_LPF_N2 += (Nrpm_s - s_LPF_N2 )*k_LPF_N2;
-   // kaiten +=(Nrpm_s - s_LPF_N )*k_LPF_N;
+
+        s_LPF_N += (Nrpm_s - s_LPF_N )*k_LPF_N;
+        s_LPF_N2 += (Nrpm_s - s_LPF_N2 )*k_LPF_N2;
+        // kaiten +=(Nrpm_s - s_LPF_N )*k_LPF_N;
 #endif
 // f[Hz]= Nrpm*cF_P; 計算定数 cF_P=cPole/60/2; cPole=8;
-    Fe1 = s_LPF_N*cF_P;		// cF_P = cPole/120;		// @@ 180528
+        Fe1 = s_LPF_N*cF_P;		// cF_P = cPole/120;		// @@ 180528
 //Fe1 = s_LPF_N2*0.016666666667;	// f[Hz]= Nrpm/60*10[pole]	// @*****
 //Fe1 = s_LPF_N2*0.06666666667;	// f[Hz]= Nrpm/60/2*8[pole]	// @*****
-    We1 = TWOPI*Fe1;  /* ω1 = 2π・f1 */
-    dTHdc = Ts0*We1;  /* θs = ω1・Ts */
+        We1 = TWOPI*Fe1;  /* ω1 = 2π・f1 */
+        dTHdc = Ts0*We1;  /* θs = ω1・Ts */
 
-    /* Hole IC PLL  */
-    if(	TC_FLG == 1)  /* キャプチャ発生時の速度領域 */
-    {
+        /* Hole IC PLL  */
+        if(	TC_FLG == 1)  /* キャプチャ発生時の速度領域 */
+        {
 #if 1
-        if(s_LPF_N > NRPM_MIN)  /* 正転 */
-        {
-            S6_MODE_p = 2;/* 0: -sin, 1:6step, 2:+sin */
-	    S5_MODE=S6_MODE_p;
-        }
-        else
-        {
-            if(s_LPF_N < (-NRPM_MIN))  /* 逆転 */
+            if(s_LPF_N > NRPM_MIN)  /* 正転 */
             {
-                S6_MODE_p = 0;/* 0: -sin, 1:6step, 2:+sin  aki 0 */
-		S5_MODE=S6_MODE_p;
+                S6_MODE_p = 2;/* 0: -sin, 1:6step, 2:+sin */
+                S5_MODE=S6_MODE_p;
             }
-            else  /* 零付近ウロウロ */
+            else
             {
-                S6_MODE = 1;/* 0: -sin, 1:6step, 2:+sin */
-		
-                //I_ref_q_ini=Start;//0603
+                if(s_LPF_N < (-NRPM_MIN))  /* 逆転 */
+                {
+                    S6_MODE_p = 0;/* 0: -sin, 1:6step, 2:+sin  aki 0 */
+                    S5_MODE=S6_MODE_p;
+                }
+                else  /* 零付近ウロウロ */
+                {
+                    S6_MODE = 1;/* 0: -sin, 1:6step, 2:+sin */
+
+                    //I_ref_q_ini=Start;//0603
+                }
             }
-        }
 #endif
 
-        //if(vr1_ad>0.05)
-        //{
-        // サンプル開始までのずれ角計算定数 cdt_P=cTr2/cIMCLK_FRQ/1000000; cTr2=64; IMCLK_FRQ=96[MHz]
-        // cdt_P = cTr2 / cIMCLK_FRQ / 1000000.= 64/96000000[Hz]
-        dTH_hole = cdt_P*((float)( TC_cnt_Ts - TC_cnt_Hole))*We1;			// @@ 180528
-        //dTH_hole = 0.0000006*((float)( TC_cnt_Ts - TC_cnt_Hole))*We1;		// @*****
-        // ↑サンプル開始までのずれ角 dt=1/1500000  (1500000=96MHz/64)
-        // dTH_hole = 0.0000026666667*((float)( TC_cnt_Ts - TC_cnt_Hole))*We1;	// @*****
-        // ↑サンプル開始までのずれ角 dt=1/375000  (375000=96MHz/256)
-        //}
-        //else
-        //{
-        // サンプル開始までのずれ角計算定数 cdt_P=cTr2/cIMCLK_FRQ/1000000; cTr2=64; IMCLK_FRQ=96[MHz]
-        // cdt_P = cTr2 / cIMCLK_FRQ / 1000000.= 64/96000000[Hz]=0.00000007
-        //dTH_hole = cdt_P*((float)( TC_cnt_Ts - TC_cnt_Hole))*We1;			// @@ 180528
-        //dTH_hole = 0.0000006*((float)( TC_cnt_Ts - TC_cnt_Hole))*We1;		// @*****
-        // ↑サンプル開始までのずれ角 dt=1/1500000  (1500000=96MHz/64)
-        //dTH_hole = 0.0000026666667*((float)( TC_cnt_Ts - TC_cnt_Hole))*We1;	// @*****
-        // ↑サンプル開始までのずれ角 dt=1/1500000  (1500000=96MHz/256)
+            //if(vr1_ad>0.05)
+            //{
+            // サンプル開始までのずれ角計算定数 cdt_P=cTr2/cIMCLK_FRQ/1000000; cTr2=64; IMCLK_FRQ=96[MHz]
+            // cdt_P = cTr2 / cIMCLK_FRQ / 1000000.= 64/96000000[Hz]
+            dTH_hole = cdt_P*((float)( TC_cnt_Ts - TC_cnt_Hole))*We1;			// @@ 180528
+            //dTH_hole = 0.0000006*((float)( TC_cnt_Ts - TC_cnt_Hole))*We1;		// @*****
+            // ↑サンプル開始までのずれ角 dt=1/1500000  (1500000=96MHz/64)
+            // dTH_hole = 0.0000026666667*((float)( TC_cnt_Ts - TC_cnt_Hole))*We1;	// @*****
+            // ↑サンプル開始までのずれ角 dt=1/375000  (375000=96MHz/256)
+            //}
+            //else
+            //{
+            // サンプル開始までのずれ角計算定数 cdt_P=cTr2/cIMCLK_FRQ/1000000; cTr2=64; IMCLK_FRQ=96[MHz]
+            // cdt_P = cTr2 / cIMCLK_FRQ / 1000000.= 64/96000000[Hz]=0.00000007
+            //dTH_hole = cdt_P*((float)( TC_cnt_Ts - TC_cnt_Hole))*We1;			// @@ 180528
+            //dTH_hole = 0.0000006*((float)( TC_cnt_Ts - TC_cnt_Hole))*We1;		// @*****
+            // ↑サンプル開始までのずれ角 dt=1/1500000  (1500000=96MHz/64)
+            //dTH_hole = 0.0000026666667*((float)( TC_cnt_Ts - TC_cnt_Hole))*We1;	// @*****
+            // ↑サンプル開始までのずれ角 dt=1/1500000  (1500000=96MHz/256)
 
-        //}
+            //}
 
 
 
-        if((dTH_hole > DEG030N)||(dTH_hole < (-DEG030N)))
+            if((dTH_hole > DEG030N)||(dTH_hole < (-DEG030N)))
+            {
+                dTH_hole = 0.0;
+            }
+            else {}
+        }
+        else
         {
             dTH_hole = 0.0;
         }
-        else {}
-    }
-    else
-    {
-        dTH_hole = 0.0;
-    }
 
 
 
 
-    /*a_LPF_N=fabs(s_LPF_N);
+        /*a_LPF_N=fabs(s_LPF_N);
 
-    if(a_LPF_N<40){
-    		kpPLL = 40.0;	//12.0
-                	kiPLL =0.035; //0.0025
+        if(a_LPF_N<40){
+        		kpPLL = 40.0;	//12.0
+                    	kiPLL =0.035; //0.0025
 
-    }
-    else{}
-    if((a_LPF_N>=40)&&(a_LPF_N<60)){
-    		kpPLL = 50.0;
-                	kiPLL =0.065;
+        }
+        else{}
+        if((a_LPF_N>=40)&&(a_LPF_N<60)){
+        		kpPLL = 50.0;
+                    	kiPLL =0.065;
 
-    }
-    else{}
-    if((a_LPF_N>=60)&&(a_LPF_N<90)){
-    		kpPLL = 60.0;
-                	kiPLL =0.070;
+        }
+        else{}
+        if((a_LPF_N>=60)&&(a_LPF_N<90)){
+        		kpPLL = 60.0;
+                    	kiPLL =0.070;
 
-    }
-    else{}
-    if((a_LPF_N>=90)){
-    		kpPLL = 70.0;
-                	kiPLL =0.075;
+        }
+        else{}
+        if((a_LPF_N>=90)){
+        		kpPLL = 70.0;
+                    	kiPLL =0.075;
 
-    }
-    else{}*/
+        }
+        else{}*/
 
-    V_MODE = UVW_in(); /* Hole IC信号の状態 */
+        V_MODE = UVW_in(); /* Hole IC信号の状態 */
 
 #if 0
-    switch (HUVW)
-    {
-    case 1:
-        V_MODE = 2;
-        break;
-    case 2:
-        V_MODE = 4;
-        break;
-    case 3:
-        V_MODE = 3;
-        break;
-    case 4:
-        V_MODE = 6;
-        break;
-    case 5:
-        V_MODE = 1;
-        break;
-    case 6:
-        V_MODE = 5;
-        break;
-    default:
-        V_MODE = 1;
-        break;
-    }
+        switch (HUVW)
+        {
+        case 1:
+            V_MODE = 2;
+            break;
+        case 2:
+            V_MODE = 4;
+            break;
+        case 3:
+            V_MODE = 3;
+            break;
+        case 4:
+            V_MODE = 6;
+            break;
+        case 5:
+            V_MODE = 1;
+            break;
+        case 6:
+            V_MODE = 5;
+            break;
+        default:
+            V_MODE = 1;
+            break;
+        }
 #endif
 
-    if((S5_MODE == 2)&&(TC_FLG == 1))//S6_MODE
-    {
-        switch (V_MODE)
+        if((S5_MODE == 2)&&(TC_FLG == 1))//S6_MODE
         {
-        case 1:
-            TH_hole = DEG150N;  /* θhole[rad] 210 */
-            break;
-        case 2:
-            TH_hole = DEG210N;  /* θhole[rad] 270 */
-            break;
-        case 3:
-            TH_hole = DEG270N;  /* θhole[rad] 330 */
-            break;
-        case 4:
-            TH_hole = DEG330N;  /* θhole[rad] 30 */
-            break;
-        case 5:
-            TH_hole = DEG030N;  /* θhole[rad] 90 */
-            break;
-        case 6:
-            TH_hole = DEG090N;  /* θhole[rad] 150 */
-            break;
-        default:
-            TH_hole = DEG150N;  /* θhole[rad] 210 */
-            break;
+            switch (V_MODE)
+            {
+            case 1:
+                TH_hole = DEG150N;  /* θhole[rad] 210 */
+                break;
+            case 2:
+                TH_hole = DEG210N;  /* θhole[rad] 270 */
+                break;
+            case 3:
+                TH_hole = DEG270N;  /* θhole[rad] 330 */
+                break;
+            case 4:
+                TH_hole = DEG330N;  /* θhole[rad] 30 */
+                break;
+            case 5:
+                TH_hole = DEG030N;  /* θhole[rad] 90 */
+                break;
+            case 6:
+                TH_hole = DEG090N;  /* θhole[rad] 150 */
+                break;
+            default:
+                TH_hole = DEG150N;  /* θhole[rad] 210 */
+                break;
+            }
+            THdc = TH_hole + dTH_hole;
+            TH_sin_on = 1;
+
+            THdc_err = THdc - THdcPLL;
+            while(THdc_err > ONEPI)  /* 「-π < θdc < π」に制限 */
+            {
+                THdc_err -= TWOPI;
+            }
+            while(THdc_err < (-ONEPI))  /* 「-π < θdc < π」に制限 */
+            {
+                THdc_err += TWOPI;
+            }/**/
         }
-        THdc = TH_hole + dTH_hole;
-        TH_sin_on = 1;
+        else {}
 
-        THdc_err = THdc - THdcPLL;
-        while(THdc_err > ONEPI)  /* 「-π < θdc < π」に制限 */
+        if((S5_MODE == 0)&&(TC_FLG == 1))////S6_MODE
         {
-            THdc_err -= TWOPI;
+            switch (V_MODE)
+            {
+            case 1:
+                TH_hole = DEG270N;  /* θhole[rad] 270 */
+                break;
+            case 2:
+                TH_hole = DEG330N;  /* θhole[rad] 330 */
+                break;
+            case 3:
+                TH_hole = DEG030N;  /* θhole[rad] 30 */
+                break;
+            case 4:
+                TH_hole = DEG090N;  /* θhole[rad] 90 */
+                break;
+            case 5:
+                TH_hole = DEG150N;  /* θhole[rad] 150 */
+                break;
+            case 6:
+                TH_hole = DEG210N;  /* θhole[rad] 210 */
+                break;
+            default:
+                TH_hole = DEG270N;  /* θhole[rad] 270 */
+                break;
+
+            }
+            THdc = TH_hole + dTH_hole;//aki +
+            TH_sin_on = 1;
+
+            THdc_err = THdc - THdcPLL; //aki -
+            while(THdc_err >( ONEPI))  /* 「-π < θdc < π」に制限 */
+            {
+                THdc_err -= TWOPI;  //aki -
+            }
+            while(THdc_err < (-ONEPI))  /* 「-π < θdc < π」に制限 */
+            {
+                THdc_err += TWOPI;  //aki+
+            }/**/
+
         }
-        while(THdc_err < (-ONEPI))  /* 「-π < θdc < π」に制限 */
+        else {}
+
+        if(S6_MODE == 1)
         {
-            THdc_err += TWOPI;
-        }/**/
-    }
-    else {}
-
-    if((S5_MODE == 0)&&(TC_FLG == 1))////S6_MODE
-    {
-        switch (V_MODE)
-        {
-        case 1:
-            TH_hole = DEG270N;  /* θhole[rad] 270 */
-            break;
-        case 2:
-            TH_hole = DEG330N;  /* θhole[rad] 330 */
-            break;
-        case 3:
-            TH_hole = DEG030N;  /* θhole[rad] 30 */
-            break;
-        case 4:
-            TH_hole = DEG090N;  /* θhole[rad] 90 */
-            break;
-        case 5:
-            TH_hole = DEG150N;  /* θhole[rad] 150 */
-            break;
-        case 6:
-            TH_hole = DEG210N;  /* θhole[rad] 210 */
-            break;
-        default:
-            TH_hole = DEG270N;  /* θhole[rad] 270 */
-            break;
-
-        }
-        THdc = TH_hole + dTH_hole;//aki +
-        TH_sin_on = 1;
-
-        THdc_err = THdc - THdcPLL; //aki -
-        while(THdc_err >( ONEPI))  /* 「-π < θdc < π」に制限 */
-        {
-            THdc_err -= TWOPI;  //aki -
-        }
-        while(THdc_err < (-ONEPI))  /* 「-π < θdc < π」に制限 */
-        {
-            THdc_err += TWOPI;  //aki+
-        }/**/
-
-    }
-    else {}
-
-    if(S6_MODE == 1)
-    {
-      //  if(vr2_ad>=jth) {
+            //  if(vr2_ad>=jth) {
             switch (V_MODE)
             {
             case 1:
@@ -1895,11 +1926,11 @@ void  int_carrier_m1(void)
                 break;
             case 3:
                 TH_hole = 0.0;//   //0.0
-		S6_MODE=S5_MODE;
+                S6_MODE=S5_MODE;
                 break;
             case 4:
                 TH_hole = DEG060N; //60
-		
+
                 break;
             case 5:
                 TH_hole = DEG120N;  //120
@@ -1911,234 +1942,236 @@ void  int_carrier_m1(void)
                 TH_hole =DEG240N;  //240
                 break;
             }
-       // }
-       // else {}
+            // }
+            // else {}
 
-       /* if(vr2_ad<-jth) {
-		
-            switch (V_MODE)
-            {
-            case 1:
-                TH_hole = DEG240N;  //180
-                break;
-            case 2:
-                TH_hole = DEG300N;  //240
-		//S6_MODE=S5_MODE;
-                break;
-            case 3:
-                TH_hole = 0.0;     //300
-		//S6_MODE=S5_MODE;
-                break;
-            case 4:
-                TH_hole = DEG060N; //0
-		
-                break;
-            case 5:
-                TH_hole = DEG120N;//60
-		
-                break;
-            case 6:
-                TH_hole = DEG180N;  //120
-		S6_MODE=S5_MODE;
-                break;
-            default:
-                TH_hole =DEG240N;  //120
-                break;
-            }
+            /* if(vr2_ad<-jth) {
+
+                 switch (V_MODE)
+                 {
+                 case 1:
+                     TH_hole = DEG240N;  //180
+                     break;
+                 case 2:
+                     TH_hole = DEG300N;  //240
+            //S6_MODE=S5_MODE;
+                     break;
+                 case 3:
+                     TH_hole = 0.0;     //300
+            //S6_MODE=S5_MODE;
+                     break;
+                 case 4:
+                     TH_hole = DEG060N; //0
+
+                     break;
+                 case 5:
+                     TH_hole = DEG120N;//60
+
+                     break;
+                 case 6:
+                     TH_hole = DEG180N;  //120
+            S6_MODE=S5_MODE;
+                     break;
+                 default:
+                     TH_hole =DEG240N;  //120
+                     break;
+                 }
+             }
+             else {}*/
+
+            //}
+            THdc = TH_hole;//aki +
+            TH_sin_on = 0;
+
+            THdcPLL = THdc;/*aki+*/
+            THdc_err = 0.0;/**/
+            s_kiPLL = 0.0;/**/
+            //Start=St6; //aki 0519
         }
-        else {}*/
+        else {/* Start=StV;*/} //aki 0519
 
-        //}
-        THdc = TH_hole;//aki +
-        TH_sin_on = 0;
-
-        THdcPLL = THdc;/*aki+*/
-        THdc_err = 0.0;/**/
-        s_kiPLL = 0.0;/**/
-        //Start=St6; //aki 0519
-    }
-    else {/* Start=StV;*/} //aki 0519
-
-    TC_FLG = 0;
+        TC_FLG = 0;
 
 
-    if(TH_sin_on == 1)
-    {
-        THdc = THdc + dTHdc;/* 次回のdq変換位相 */
-    }
-    else {}
+        if(TH_sin_on == 1)
+        {
+            THdc = THdc + dTHdc;/* 次回のdq変換位相 */
+        }
+        else {}
 
-    while(THdc > TWOPI)  /* 「0 < θdc < 2π」に制限 */
-    {
-        THdc -= TWOPI;
-    }
-    while(THdc < 0.0)
-    {
-        THdc += TWOPI;
-    }
+        while(THdc > TWOPI)  /* 「0 < θdc < 2π」に制限 */
+        {
+            THdc -= TWOPI;
+        }
+        while(THdc < 0.0)
+        {
+            THdc += TWOPI;
+        }
 
-    /************/
-    /*  PLL制御 */
-    /* ******** */
+        /************/
+        /*  PLL制御 */
+        /* ******** */
 
-    s_kiPLL += kiPLL*THdc_err;
-    W1PLL = s_kiPLL + kpPLL*THdc_err;
-    THdcPLL = THdcPLL +  W1PLL*Ts0;
-    while(THdcPLL > TWOPI)  /* 「0 < θdc < 2π」に制限 */
-    {
-        THdcPLL -= TWOPI;
-    }
-    /* while(THdc < 0.0)
-     {
-    THdcPLL += TWOPI;
-     } */
-    while(THdcPLL < 0.0) //aki
-    {
+        s_kiPLL += kiPLL*THdc_err;
+        W1PLL = s_kiPLL + kpPLL*THdc_err;
+        THdcPLL = THdcPLL +  W1PLL*Ts0;
+        while(THdcPLL > TWOPI)  /* 「0 < θdc < 2π」に制限 */
+        {
+            THdcPLL -= TWOPI;
+        }
+        /* while(THdc < 0.0)
+         {
         THdcPLL += TWOPI;
-    }
+         } */
+        while(THdcPLL < 0.0) //aki
+        {
+            THdcPLL += TWOPI;
+        }
 
-    /* モードから位相がはみ出さないように処理 */
-    switch(V_MODE)
-    {
-    case 1:
-        if((DEG330N > THdc )&&( THdc > DEG270N )) {
-            THdc = DEG270N;
-        }
-        else
+        /* モードから位相がはみ出さないように処理 */
+        switch(V_MODE)
         {
-            if(( DEG150N < THdc )&&( THdc < DEG210N )) {
-                THdc = DEG210N;
-            }
-            else {}
-        }
-        break;
-    case 2:
-        if(THdc > DEG330N ) {
-            THdc = DEG330N;
-        }
-        else
-        {
-            if((DEG210N < THdc )&&( THdc < DEG270N )) {
+        case 1:
+            if((DEG330N > THdc )&&( THdc > DEG270N )) {
                 THdc = DEG270N;
             }
-            else {}
-        }
-        break;
-    case 3:
-        if(( DEG090N > THdc )&&( THdc  > DEG030N )) {
-            THdc = DEG030N;
-        }
-        else
-        {
-            if((DEG270N < THdc )&&( THdc < DEG330N )) {
+            else
+            {
+                if(( DEG150N < THdc )&&( THdc < DEG210N )) {
+                    THdc = DEG210N;
+                }
+                else {}
+            }
+            break;
+        case 2:
+            if(THdc > DEG330N ) {
                 THdc = DEG330N;
             }
-            else {}
-        }
-        break;
-    case 4:
-        if((DEG150N > THdc )&&( THdc > DEG090N )) {
-            THdc = DEG090N;
-        }
-        else
-        {
-            if(( 0 < THdc )&&( THdc < DEG030N )) {
+            else
+            {
+                if((DEG210N < THdc )&&( THdc < DEG270N )) {
+                    THdc = DEG270N;
+                }
+                else {}
+            }
+            break;
+        case 3:
+            if(( DEG090N > THdc )&&( THdc  > DEG030N )) {
                 THdc = DEG030N;
             }
-            else {}
-        }
-        break;
-    case 5:
-        if((DEG210N > THdc )&&( THdc > DEG150N )) {
-            THdc = DEG150N;
-        }
-        else
-        {
-            if(( DEG030N < THdc )&&( THdc < DEG090N )) {
+            else
+            {
+                if((DEG270N < THdc )&&( THdc < DEG330N )) {
+                    THdc = DEG330N;
+                }
+                else {}
+            }
+            break;
+        case 4:
+            if((DEG150N > THdc )&&( THdc > DEG090N )) {
                 THdc = DEG090N;
             }
-            else {}
-        }
-        break;
-    case 6:
-        if((DEG270N > THdc )&&( THdc > DEG210N )) {
-            THdc = DEG210N;
-        }
-        else
-        {
-            if((DEG090N < THdc )&&( THdc < DEG150N )) {
+            else
+            {
+                if(( 0 < THdc )&&( THdc < DEG030N )) {
+                    THdc = DEG030N;
+                }
+                else {}
+            }
+            break;
+        case 5:
+            if((DEG210N > THdc )&&( THdc > DEG150N )) {
                 THdc = DEG150N;
             }
-            else {}
-        }
-        break;
-    default:
-        break;
-    }
-
-
-    /* ↑ここまで（速度・位相計算） */
-
-    switch(DRV_sts)
-    {
-    case 0:
-        s_LPF_N = 0.0;
-        s_LPF_N2 = 0.0;
-        break;
-    case 1:
-        s_LPF_N = 0.0;
-        s_LPF_N2 = 0.0;
-        break;
-    case 2:
-        break;
-    case 3:
-        jth=0.035; //20181208
-        if(vr2_ad<0){
-            R_DR=1;
-        }
-         else{
-             R_DR=0;   
+            else
+            {
+                if(( DEG030N < THdc )&&( THdc < DEG090N )) {
+                    THdc = DEG090N;
+                }
+                else {}
             }
-        break;
-    default:
-        s_LPF_N = 0.0;
-        s_LPF_N2 = 0.0;
-        break;
-    }
+            break;
+        case 6:
+            if((DEG270N > THdc )&&( THdc > DEG210N )) {
+                THdc = DEG210N;
+            }
+            else
+            {
+                if((DEG090N < THdc )&&( THdc < DEG150N )) {
+                    THdc = DEG150N;
+                }
+                else {}
+            }
+            break;
+        default:
+            break;
+        }
 
-    if (DRV_sts == 0)
-    {
-        Nrpm = 0.0;
-        Nrpm_1 = 0.0;
-    }
-    else {}
+
+        /* ↑ここまで（速度・位相計算） */
+
+        switch(DRV_sts)
+        {
+        case 0:
+            s_LPF_N = 0.0;
+            s_LPF_N2 = 0.0;
+            break;
+        case 1:
+            s_LPF_N = 0.0;
+            s_LPF_N2 = 0.0;
+            break;
+        case 2:
+            break;
+        case 3:
+#if 0
+            // jth=0.03; //20181208
+            if(vr1_ad<0) {
+                R_DR=1;
+            }
+            else {
+                R_DR=0;
+            }
+#endif
+            break;
+        default:
+            s_LPF_N = 0.0;
+            s_LPF_N2 = 0.0;
+            break;
+        }
+
+        if (DRV_sts == 0)
+        {
+            Nrpm = 0.0;
+            Nrpm_1 = 0.0;
+        }
+        else {}
 
 
 
-    /* *********************************************** */
-    /* [ 2 ] 速度制御 ↓ */
-    /* *********************************************** */
+        /* *********************************************** */
+        /* [ 2 ] 速度制御 ↓ */
+        /* *********************************************** */
 
-    /* 回転数指令，誤差信号の処理 */
-    switch(DRV_sts)
-    {
-    case 0:
-        Nrpm_ref = 0.0;
-        Nrpm_ref0 = 0.0;
-        Nerr = 0.0;
-        break;
-    case 3:
-        /*	Nrpm_ref = Nref1*vr1_ad;
-        	if(Nrpm_ref<Nref0)
-        	{
-          		Nrpm_ref = Nref0;
-        	}
-        	else{}
-        */
+        /* 回転数指令，誤差信号の処理 */
+        switch(DRV_sts)
+        {
+        case 0:
+            Nrpm_ref = 0.0;
+            Nrpm_ref0 = 0.0;
+            Nerr = 0.0;
+            break;
+        case 3:
+            /*	Nrpm_ref = Nref1*vr1_ad;
+            	if(Nrpm_ref<Nref0)
+            	{
+              		Nrpm_ref = Nref0;
+            	}
+            	else{}
+            */
 
-        Nrpm_ref0 = fabs(Nref1 * vr1_ad); //aki  Nref1 MAX Speed -
-        //Nrpm_ref0 = Nref1*-0.5;
-       // if(Nrpm_ref0>0) {
+            Nrpm_ref0 = fabs(Nref1 * vr1_ad); //aki  Nref1 MAX Speed -
+            //Nrpm_ref0 = Nref1*-0.5;
+            // if(Nrpm_ref0>0) {
             // Nrpm_ref0 = Nref1*(vr1_ad-0.05);
             if(Nref0 > Nrpm_ref0)
             {
@@ -2167,429 +2200,429 @@ void  int_carrier_m1(void)
             }
             else {}
             Nrpm_ref = Nref0;
-	if(R_DR==1){
-            Nerr = Nrpm_ref- Nrpm_s;//- 12 02 2018
-	}
-	else{
-	     Nerr = Nrpm_ref+ Nrpm_s;	
-	}
-	    
-	    if(Nerr>=50){
-		 Nerr=50;  
-	    }
-	    else{}
-	    if(Nerr<-50){
-		 Nerr=-50;   
-	    }
-	    else{}
-	   
-       // }
-      /*  else {}
-        if(Nrpm_ref0<0) {
-            // Nrpm_ref0 = Nref1*(vr1_ad+0.05);
-            if(Nref0 < Nrpm_ref0)//Nrpm_ref0 wa minus
-            {
-                Nref0 += dN_HI_N; //aki +
-                if(Nref0 > Nrpm_ref0)
-                {
-                    Nref0 = Nrpm_ref0;
-                }
-                else {}
+            if(R_DR==1) {
+                Nerr = Nrpm_ref- Nrpm_s;//- 12 02 2018
+            }
+            else {
+                Nerr = Nrpm_ref+ Nrpm_s;
+            }
+
+            if(Nerr>=50) {
+                Nerr=50;
+            }
+            else {}
+            if(Nerr<-50) {
+                Nerr=-50;
             }
             else {}
 
-            if(Nref0 > Nrpm_ref0)
-            {
-                Nref0 -= dN_HI_P;  //aki +
-                if(Nref0 < Nrpm_ref0)
-                {
-                    Nref0 = Nrpm_ref0;
-                }
-                else {}
-            }
-            else {}
+            // }
+            /*  else {}
+              if(Nrpm_ref0<0) {
+                  // Nrpm_ref0 = Nref1*(vr1_ad+0.05);
+                  if(Nref0 < Nrpm_ref0)//Nrpm_ref0 wa minus
+                  {
+                      Nref0 += dN_HI_N; //aki +
+                      if(Nref0 > Nrpm_ref0)
+                      {
+                          Nref0 = Nrpm_ref0;
+                      }
+                      else {}
+                  }
+                  else {}
 
-            if(Nref0>-N_LOW_MAX)
-            {
-                Nref0 =-N_LOW_MAX;//*aki
-            }
-            else {}
-            Nrpm_ref = Nref0;
+                  if(Nref0 > Nrpm_ref0)
+                  {
+                      Nref0 -= dN_HI_P;  //aki +
+                      if(Nref0 < Nrpm_ref0)
+                      {
+                          Nref0 = Nrpm_ref0;
+                      }
+                      else {}
+                  }
+                  else {}
 
-            Nerr = -Nrpm_ref + Nrpm_s;//センサ付 aki +
-	    
-	   
+                  if(Nref0>-N_LOW_MAX)
+                  {
+                      Nref0 =-N_LOW_MAX;//*aki
+                  }
+                  else {}
+                  Nrpm_ref = Nref0;
+
+                  Nerr = -Nrpm_ref + Nrpm_s;//センサ付 aki +
+
+
+              }
+              else {}*/
+            /*#define ErrMax 1000
+                    if(Nerr < -ErrMax) {
+                        Nerr = -ErrMax;
+                    }
+                    else {}
+
+                    if(Nerr > ErrMax) {
+                        Nerr = ErrMax;
+                    }*/
+            // Nerr=-Nerr;
+
+            break;
+        default:
+            break;
         }
-        else {}*/
-/*#define ErrMax 1000
-        if(Nerr < -ErrMax) {
-            Nerr = -ErrMax;
+
+        /* ----------- */
+        /* ASRのPI制御 */
+        /* ----------- */
+        s_kiASR += kiASR*Nerr;
+        if(s_kiASR >I1_LIM )//I1_LIM
+        {
+            s_kiASR = I1_LIM;
+        }
+        else
+        {
+            if(s_kiASR < -I1_LIM)
+            {
+                s_kiASR = -I1_LIM;
+            } else {}
+
+
+        }
+
+        I_ref_ASR = s_kiASR + kpASR*Nerr;
+
+        if(I_ref_ASR > I1_LIM)//I1_LIM
+        {
+            I_ref_ASR = I1_LIM;//I1_LIM;
+        }
+        else
+        {
+            if(I_ref_ASR < (-I1_LIM))
+            {
+                I_ref_ASR = -I1_LIM;
+            } else {}
+
+        }
+
+        /* ASRの初期値 */
+        if(DRV_sts != 3)
+        {
+            s_kiASR = I_ref_q_ini;
+            I_ref_ASR = I_ref_q_ini;
         }
         else {}
-        
-        if(Nerr > ErrMax) {
-            Nerr = ErrMax;
-        }*/
-          // Nerr=-Nerr;
-        
-        break;
-    default:
-        break;
-    }
 
-    /* ----------- */
-    /* ASRのPI制御 */
-    /* ----------- */
-    s_kiASR += kiASR*Nerr;
-    if(s_kiASR >I1_LIM )//I1_LIM
-    {
-        s_kiASR = I1_LIM;
-    }
-    else
-    {
-        if(s_kiASR < -I1_LIM)
+
+        /* *********************************************** */
+        /* [ 3 ] 電流制御 ↓ */
+        /* *********************************************** */
+
+        /* 電流指令 */
+        switch(DRV_sts)
         {
-            s_kiASR = -I1_LIM;
-        } else {}
-	
-	
-    }
+        case 0: /* 待機状態 */
+            I_ref_q = 0; 			/* q軸電流指令 */
+            I_err_q = 0;			/* q軸電流偏差 */
+            s_kiACR_q = 0.0;		/* q軸ACRの積分器クリア */
+            s_kiASR = 0.0;			/* ASRの積分器クリア */
+            break;
+        case 3: /* 駆動開始 */
+            I_ref_d = 0.0;			/* d軸電流指令 */
+            I_err_d = I_ref_d - Idc0;	/* d軸電流偏差 */
+            I_ref_q = I_ref_ASR;		/* q軸電流指令 */
+            I_err_q = I_ref_q - Iqc0;	/* q軸電流偏差 */
+            break;
+        default:
+            I_ref_q = 0;
+            I_err_q = 0;
+            s_kiACR_q = 0.0;
+            s_kiASR = 0.0;
+            break;
+        }
 
-    I_ref_ASR = s_kiASR + kpASR*Nerr;
+        /* ----------- */
+        /* ACRのPI制御 */
+        /* ----------- */
 
-    if(I_ref_ASR > I1_LIM)//I1_LIM
-    {
-        I_ref_ASR = I1_LIM;//I1_LIM;
-    }
-    else
-    {
-       if(I_ref_ASR < (-I1_LIM))
+        /* d軸ACR */
+        s_kiACR_d += kiACR*I_err_d; /* d軸積分処理 */
+        if(s_kiACR_d > V1_LIM)
         {
-            I_ref_ASR = -I1_LIM;
-        } else {}
-	
-    }
-
-    /* ASRの初期値 */
-    if(DRV_sts != 3)
-    {
-        s_kiASR = I_ref_q_ini;
-        I_ref_ASR = I_ref_q_ini;
-    }
-    else {}
-
-
-    /* *********************************************** */
-    /* [ 3 ] 電流制御 ↓ */
-    /* *********************************************** */
-
-    /* 電流指令 */
-    switch(DRV_sts)
-    {
-    case 0: /* 待機状態 */
-        I_ref_q = 0; 			/* q軸電流指令 */
-        I_err_q = 0;			/* q軸電流偏差 */
-        s_kiACR_q = 0.0;		/* q軸ACRの積分器クリア */
-        s_kiASR = 0.0;			/* ASRの積分器クリア */
-        break;
-    case 3: /* 駆動開始 */
-        I_ref_d = 0.0;			/* d軸電流指令 */
-        I_err_d = I_ref_d - Idc0;	/* d軸電流偏差 */
-        I_ref_q = I_ref_ASR;		/* q軸電流指令 */
-        I_err_q = I_ref_q - Iqc0;	/* q軸電流偏差 */
-        break;
-    default:
-        I_ref_q = 0;
-        I_err_q = 0;
-        s_kiACR_q = 0.0;
-        s_kiASR = 0.0;
-        break;
-    }
-
-    /* ----------- */
-    /* ACRのPI制御 */
-    /* ----------- */
-
-    /* d軸ACR */
-    s_kiACR_d += kiACR*I_err_d; /* d軸積分処理 */
-    if(s_kiACR_d > V1_LIM)
-    {
-        s_kiACR_d = V1_LIM;
-    }
-    else
-    {
-        if(s_kiACR_d < (-V1_LIM))
+            s_kiACR_d = V1_LIM;
+        }
+        else
         {
-            s_kiACR_d = -V1_LIM;
-        } else {}
-    }
+            if(s_kiACR_d < (-V1_LIM))
+            {
+                s_kiACR_d = -V1_LIM;
+            } else {}
+        }
 
-    Vdc0 = s_kiACR_d + kpACR*I_err_d; /* d軸電圧指令Vd */
+        Vdc0 = s_kiACR_d + kpACR*I_err_d; /* d軸電圧指令Vd */
 
-    if(Vdc0 > V1_LIM)
-    {
-        Vdc0 = V1_LIM;
-    }
-    else
-    {
-        if(Vdc0 < (-V1_LIM))
+        if(Vdc0 > V1_LIM)
         {
-            Vdc0 = -V1_LIM;
-        } else {}
-    }
-
-
-
-    /* q軸ACR */
-    s_kiACR_q += kiACR*I_err_q;  /* q軸積分処理 */
-    if(s_kiACR_q > V1_LIM)
-    {
-        s_kiACR_q = V1_LIM;
-    }
-    else
-    {
-        if(s_kiACR_q < (-V1_LIM))
+            Vdc0 = V1_LIM;
+        }
+        else
         {
-            s_kiACR_q = -V1_LIM;
-        } else {}
-    }
+            if(Vdc0 < (-V1_LIM))
+            {
+                Vdc0 = -V1_LIM;
+            } else {}
+        }
 
-    Vqc0 = s_kiACR_q + kpACR*I_err_q; /* q軸電圧指令Vq */
 
-    if(Vqc0 > V1_LIM)
-    {
-        Vqc0 = V1_LIM;
-    }
-    else
-    {
-        if(Vqc0 < (-V1_LIM))
+
+        /* q軸ACR */
+        s_kiACR_q += kiACR*I_err_q;  /* q軸積分処理 */
+        if(s_kiACR_q > V1_LIM)
         {
-            Vqc0 = -V1_LIM;
-        } else {}
-    }
+            s_kiACR_q = V1_LIM;
+        }
+        else
+        {
+            if(s_kiACR_q < (-V1_LIM))
+            {
+                s_kiACR_q = -V1_LIM;
+            } else {}
+        }
 
-    /* 電流フィルタ */
-    s_LPF_i += (Iqc0 - s_LPF_i )*k_LPF_i;
+        Vqc0 = s_kiACR_q + kpACR*I_err_q; /* q軸電圧指令Vq */
+
+        if(Vqc0 > V1_LIM)
+        {
+            Vqc0 = V1_LIM;
+        }
+        else
+        {
+            if(Vqc0 < (-V1_LIM))
+            {
+                Vqc0 = -V1_LIM;
+            } else {}
+        }
+
+        /* 電流フィルタ */
+        s_LPF_i += (Iqc0 - s_LPF_i )*k_LPF_i;
 
 
-    /* *********************************************** */
-    /* [ 4 ] PWMの設定 */
-    /* *********************************************** */
+        /* *********************************************** */
+        /* [ 4 ] PWMの設定 */
+        /* *********************************************** */
 
-    /* mのリミッタ */
-    if      (m >  m1_LIM) {
-        m =  m1_LIM;
-    }
-    else if (m < (-m1_LIM)) {
-        m = -m1_LIM;
-    }
-    else               { /* no code */ }
+        /* mのリミッタ */
+        if      (m >  m1_LIM) {
+            m =  m1_LIM;
+        }
+        else if (m < (-m1_LIM)) {
+            m = -m1_LIM;
+        }
+        else               { /* no code */ }
 
-    if (DRV_sts == 0) {
-        m = 0.0;
-    }
-    else       { /* no code */ }
+        if (DRV_sts == 0) {
+            m = 0.0;
+        }
+        else       { /* no code */ }
 
-    /* --------- */
-    /* LEDの設定 */
-    /* --------- */
+        /* --------- */
+        /* LEDの設定 */
+        /* --------- */
 
-    /* ホールIC信号 */
+        /* ホールIC信号 */
 //LED2_set(U_in()); /**/
 //LED3_set(V_in()); /**/
 //LED4_set(W_in()); /**/
 
-    /* 過去モードの保存 */
-    VMODE_z2 = VMODE_z1;/* 前回値保存 */
+        /* 過去モードの保存 */
+        VMODE_z2 = VMODE_z1;/* 前回値保存 */
 //VMODE_z1 = VMODE;/* 前回値保存 */
 
 
-    /* ------------ */
-    /* モードの更新 */
-    /* ------------ */
+        /* ------------ */
+        /* モードの更新 */
+        /* ------------ */
 
-    UVW = UVW_in(); /* センサ付・ホールIC信号 */
+        UVW = UVW_in(); /* センサ付・ホールIC信号 */
 
-    switch(DRV_sts)
-    {
-    case 0:
-        VMODE = 1;
-        break;
-    case 1:
-        VMODE = 1;
-        break;
-    case 2:
-
-    case 3: /* ホールIC信号→VMODEのデコード　*/
-        switch (UVW)
+        switch(DRV_sts)
         {
+        case 0:
+            VMODE = 1;
+            break;
         case 1:
-            VMODE_z1 = 2;
+            VMODE = 1;
             break;
         case 2:
-            VMODE_z1 = 4;
-            break;
-        case 3:
-            VMODE_z1 = 3;
-            break;
-        case 4:
-            VMODE_z1 = 6;
-            break;
-        case 5:
-            VMODE_z1 = 1;
-            break;
-        case 6:
-            VMODE_z1 = 5;
+
+        case 3: /* ホールIC信号→VMODEのデコード　*/
+            switch (UVW)
+            {
+            case 1:
+                VMODE_z1 = 2;
+                break;
+            case 2:
+                VMODE_z1 = 4;
+                break;
+            case 3:
+                VMODE_z1 = 3;
+                break;
+            case 4:
+                VMODE_z1 = 6;
+                break;
+            case 5:
+                VMODE_z1 = 1;
+                break;
+            case 6:
+                VMODE_z1 = 5;
+                break;
+            default:
+                VMODE_z1 = 1;
+                break;
+            }
             break;
         default:
-            VMODE_z1 = 1;
             break;
         }
-        break;
-    default:
-        break;
-    }
 
-    /* ---------------------- */
-    /* 回転方向 */
-    /* R_DR -> 1:正転，0:逆転 */
-    /* ---------------------- */
-   /* if(VMODE_z2 == VMODE_z1) {}
-    else
-    {
-        if(VMODE_z2 < VMODE_z1)
+        /* ---------------------- */
+        /* 回転方向 */
+        /* R_DR -> 1:正転，0:逆転 */
+        /* ---------------------- */
+        /* if(VMODE_z2 == VMODE_z1) {}
+         else
+         {
+             if(VMODE_z2 < VMODE_z1)
+             {
+                 if((VMODE_z2==1)&&(VMODE_z1==6)) {
+                     R_DR=0;   // R_DR=0 1
+                 }
+                 else {
+                     R_DR=1;
+                 }
+             }
+             else
+             {
+                 if((VMODE_z2==6)&&(VMODE_z1==1)) {
+                     R_DR=1;   //R_DR=1 0
+                 }
+                 else {
+                     R_DR=0;
+                 }
+             }
+         }*/
+
+        /* **************** */
+        /*     位相更新     */
+        /* **************** */
+        We1 = TWOPI*Fe1;  /* ω1 = 2π・f1 */
+        dTHdc = Ts0*We1;  /* θs = ω1・Ts aki +*/
+
+        if((PLL_ON == 1)&&(S6_MODE != 1))
         {
-            if((VMODE_z2==1)&&(VMODE_z1==6)) {
-                R_DR=0;   // R_DR=0 1
-            }
-            else {
-                R_DR=1;
-            }
+            THdcV = THdcPLL + dTHdc*0.5/* 今回設定するdq逆変換位相 aki +*/;
         }
         else
         {
-            if((VMODE_z2==6)&&(VMODE_z1==1)) {
-                R_DR=1;   //R_DR=1 0
-            }
-            else {
-                R_DR=0;
-            }
+            THdcV = THdc + dTHdc*0.5/* 今回設定するdq逆変換位相 aki+ + */;
         }
-    }*/
-
-    /* **************** */
-    /*     位相更新     */
-    /* **************** */
-    We1 = TWOPI*Fe1;  /* ω1 = 2π・f1 */
-    dTHdc = Ts0*We1;  /* θs = ω1・Ts aki +*/
-
-    if((PLL_ON == 1)&&(S6_MODE != 1))
-    {
-        THdcV = THdcPLL + dTHdc*0.5/* 今回設定するdq逆変換位相 aki +*/;
-    }
-    else
-    {
-        THdcV = THdc + dTHdc*0.5/* 今回設定するdq逆変換位相 aki+ + */;
-    }
-    while(THdcV > TWOPI)  /* 「0 < θdc < 2π」に制限 */
-    {
-        THdcV -= TWOPI;
-    }
-    /* while(THdc < 0.0)  //aki
-     {
-    THdcV += TWOPI;
-     }*/
-    while(THdcV < 0.0)
-    {
-        THdcV += TWOPI;
-    }
-
-    /* ************ */
-    /* dq逆座標変換 */
-    /* ************ */
-
-    s_LPF_vd0 += (Vdc0 - s_LPF_vd0)*k_LPF_vd0;
-    s_LPF_vq0 += (Vqc0 - s_LPF_vq0)*k_LPF_vq0;
-
-    SIN0 = sin(THdcV);//aki
-    COS0 = cos(THdcV);
-
-    /* dq -> αβ */
-    Vac0 = Vdc0*COS0 -Vqc0*SIN0; //-
-    Vbc0 = Vdc0*SIN0 + Vqc0*COS0; //+
-
-    /* αβ -> Vuvw */
-    Vac0_t = 0.40824892046*Vac0;
-    Vbc0_t = 0.70710678118*Vbc0;
-
-    Vuc0 = 2.0*Vac0_t;
-    Vvc0 = -Vac0_t + Vbc0_t;
-    Vwc0 = -Vac0_t - Vbc0_t;
-
-
-    switch(PWM_mode)
-    {
-    case 0: /* SIN PWM（なにもなし） */
-        Vuc1 = Vuc0;
-        Vvc1 = Vvc0;
-        Vwc1 = Vwc0;
-        break;
-    case 1:
-        HIP(); /* HIP変調 */
-        break;
-    default:
-        HIP(); /**/
-        break;
-    }
-
-    /* PWM Vuvw -> Muvw */
-    refu = Vuc1*Power1;//R2Edc0;
-    refv = Vvc1*Power1;//;R2Edc0
-    refw = Vwc1*Power1;//R2Edc0
-    /*  if((vr2_ad>jth)){//||(Rcnt > jthr)){// vr1_ad  0604
-      refu = Vuc1*Power1;//vr1_ad
-      refv = Vvc1*Power1;
-      refw = Vwc1*Power1;
-      }
-      else{}
-      if((vr2_ad<-jth)){//||(Rcnt<-jthr)){ //vr1_ad 0604
-      refu = Vuc1*Power1;//-vr1_ad
-      refv = Vvc1*Power1;
-      refw = Vwc1*Power1;
-      }
-      else{}*/
-    /* if((fabs(s_LPF_N2)>kaitensu)&&(Rot==0)&&(jNorm==0)){
-     for(count=1;count<=100; count=count+1){
-     refu = 0.65;
-     refv = 0.65;
-     refw = 0.55;
-     }
-     }
-     else{}*/
-    /* --------- */
-    /* PWMの設定 */
-    /* --------- */
-    inverter_set_uvw( refu, refv, refw, YT_cnt,0);  //( refu, refv, refw, YT_cnt, MN )
-
-    /* ----------- */
-    /* ICS support */
-    /* ----------- */
-#ifdef	TEST_M1
-    if(YT_cnt == 0)
-    {
-        cnt++;
-        if (cnt>=3)
+        while(THdcV > TWOPI)  /* 「0 < θdc < 2π」に制限 */
         {
-            ics_watchpoint();
-            cnt = 0;
+            THdcV -= TWOPI;
+        }
+        /* while(THdc < 0.0)  //aki
+         {
+        THdcV += TWOPI;
+         }*/
+        while(THdcV < 0.0)
+        {
+            THdcV += TWOPI;
+        }
+
+        /* ************ */
+        /* dq逆座標変換 */
+        /* ************ */
+
+        s_LPF_vd0 += (Vdc0 - s_LPF_vd0)*k_LPF_vd0;
+        s_LPF_vq0 += (Vqc0 - s_LPF_vq0)*k_LPF_vq0;
+
+        SIN0 = sin(THdcV);//aki
+        COS0 = cos(THdcV);
+
+        /* dq -> αβ */
+        Vac0 = Vdc0*COS0 -Vqc0*SIN0; //-
+        Vbc0 = Vdc0*SIN0 + Vqc0*COS0; //+
+
+        /* αβ -> Vuvw */
+        Vac0_t = 0.40824892046*Vac0;
+        Vbc0_t = 0.70710678118*Vbc0;
+
+        Vuc0 = 2.0*Vac0_t;
+        Vvc0 = -Vac0_t + Vbc0_t;
+        Vwc0 = -Vac0_t - Vbc0_t;
+
+
+        switch(PWM_mode)
+        {
+        case 0: /* SIN PWM（なにもなし） */
+            Vuc1 = Vuc0;
+            Vvc1 = Vvc0;
+            Vwc1 = Vwc0;
+            break;
+        case 1:
+            HIP(); /* HIP変調 */
+            break;
+        default:
+            HIP(); /**/
+            break;
+        }
+
+        /* PWM Vuvw -> Muvw */
+        refu = Vuc1*Power1;//R2Edc0;
+        refv = Vvc1*Power1;//;R2Edc0
+        refw = Vwc1*Power1;//R2Edc0
+        /*  if((vr2_ad>jth)){//||(Rcnt > jthr)){// vr1_ad  0604
+          refu = Vuc1*Power1;//vr1_ad
+          refv = Vvc1*Power1;
+          refw = Vwc1*Power1;
+          }
+          else{}
+          if((vr2_ad<-jth)){//||(Rcnt<-jthr)){ //vr1_ad 0604
+          refu = Vuc1*Power1;//-vr1_ad
+          refv = Vvc1*Power1;
+          refw = Vwc1*Power1;
+          }
+          else{}*/
+        /* if((fabs(s_LPF_N2)>kaitensu)&&(Rot==0)&&(jNorm==0)){
+         for(count=1;count<=100; count=count+1){
+         refu = 0.65;
+         refv = 0.65;
+         refw = 0.55;
+         }
+         }
+         else{}*/
+        /* --------- */
+        /* PWMの設定 */
+        /* --------- */
+        inverter_set_uvw( refu, refv, refw, YT_cnt,0);  //( refu, refv, refw, YT_cnt, MN )
+
+        /* ----------- */
+        /* ICS support */
+        /* ----------- */
+#ifdef	TEST_M1
+        if(YT_cnt == 0)
+        {
+            cnt++;
+            if (cnt>=3)
+            {
+                ics_watchpoint();
+                cnt = 0;
+            }
+            else {}
         }
         else {}
-    }
-    else {}
 #endif
 
 //LED1_set(0);
-}
+    }
 
 //*****************************************************************************
 //*****************************************************************************
@@ -2597,1274 +2630,1270 @@ void  int_carrier_m1(void)
 //	int_carrier_m2()
 //*****************************************************************************
 //@****************************************************************************
-void	int_carrier_m2(void)
-{
-    ICU.IR[0x5C].BIT.IR = 0;//0x69
-    /* HoleIC PLL */
-    TC_cnt_Ts_2 = MTU2.TCNT;		// MTU2のカウンタ値 	// @***** S
+    void	int_carrier_m2(void)
+    {
+        ICU.IR[0x5C].BIT.IR = 0;//0x69
+        /* HoleIC PLL */
+        TC_cnt_Ts_2 = MTU2.TCNT;		// MTU2のカウンタ値 	// @***** S
 
 
 //    LED1_set(1);		//	// @*****
-    /* ------------------ */
-    /* AD変換器　スタート */
-    /* ------------------ */
-    // 12bit ADC
-    S12AD0.ADCSR.BIT.ADST = 1;		// @***** S
-    S12AD1.ADCSR.BIT.ADST = 1;		// @***** S
-    // 10bit ADC
-    AD0.ADCSR.BIT.ADST = 1;		// Joy Stick AN0,AN1,AN2	@***** S
+        /* ------------------ */
+        /* AD変換器　スタート */
+        /* ------------------ */
+        // 12bit ADC
+        S12AD0.ADCSR.BIT.ADST = 1;		// @***** S
+        S12AD1.ADCSR.BIT.ADST = 1;		// @***** S
+        // 10bit ADC
+        AD0.ADCSR.BIT.ADST = 1;		// Joy Stick AN0,AN1,AN2	@***** S
 
-    /* ------------ */
-    /* DRV_sts 設定 */
-    /* ------------ */
-    //SW_2 = SW_in_m2();/* SW1の入力 */
-    SW_2 = SW_in();/* SW1の入力 */
-    if (SW_2==1)/* Gate OFF DRV_sts=0 */
-    {
-        DRV_sts_2 = 0;
-        s_LPF_N_2 = 0.0;
-        s_LPF_N2_2 = 0.0;
-        s_kiASR_2 = I_ref_q_ini_2;
-        I_ref_ASR_2 = I_ref_q_ini_2;
+        /* ------------ */
+        /* DRV_sts 設定 */
+        /* ------------ */
+        //SW_2 = SW_in_m2();/* SW1の入力 */
+        SW_2 = SW_in();/* SW1の入力 */
+        if (SW_2==1)/* Gate OFF DRV_sts=0 */
+        {
+            DRV_sts_2 = 0;
+            s_LPF_N_2 = 0.0;
+            s_LPF_N2_2 = 0.0;
+            s_kiASR_2 = I_ref_q_ini_2;
+            I_ref_ASR_2 = I_ref_q_ini_2;
 
-        S6_MODE_2 = 1; //1
-        THdcPLL_2 = THdc_2;
-        s_kiPLL_2 = 0.0;
-        s_kiACR_d_2 = 0.0;
-        s_kiACR_q_2 = 0.0;
+            S6_MODE_2 = 1; //1
+            THdcPLL_2 = THdc_2;
+            s_kiPLL_2 = 0.0;
+            s_kiACR_d_2 = 0.0;
+            s_kiACR_q_2 = 0.0;
 
-        Nrpm_ref_2 = 0.0;
-    }
-    else
-    {
-        DRV_sts_2 = 3;
-    }
-    /* -------------- */
-    /* ゲート信号設定 */
-    /* -------------- */
-    /* -------------------- */
-    /* 電流，電圧検出値処理 */
-    /* -------------------- */
-    /* ↓AD変換待ち */
-    while (S12AD0.ADCSR.BIT.ADST==1) {
-        nop();    // @*****
-    }
-    while (AD0.ADCSR.BIT.ADST==1) {
-        nop();    //0712
-    }
-    /* 過去の電圧検出値の保存 */
-    // an003_2 =  an003_2;/* Vu過去値 */
+            Nrpm_ref_2 = 0.0;
+        }
+        else
+        {
+            DRV_sts_2 = 3;
+        }
+        /* -------------- */
+        /* ゲート信号設定 */
+        /* -------------- */
+        /* -------------------- */
+        /* 電流，電圧検出値処理 */
+        /* -------------------- */
+        /* ↓AD変換待ち */
+        while (S12AD0.ADCSR.BIT.ADST==1) {
+            nop();    // @*****
+        }
+        while (AD0.ADCSR.BIT.ADST==1) {
+            nop();    //0712
+        }
+        /* 過去の電圧検出値の保存 */
+        // an003_2 =  an003_2;/* Vu過去値 */
 
-    /* 電圧，電流値の取り込み */
-    anX2 = AD0.ADDRA;// JoyStick X2
-    anC02 =AD0.ADDRB;// JoyStick C02
-    anY2 = AD0.ADDRC;// JoyStick Y2			// Vu
+        /* 電圧，電流値の取り込み */
+        anX2 = AD0.ADDRA;// JoyStick X2
+        anC02 =AD0.ADDRB;// JoyStick C02
+        anY2 = AD0.ADDRC;// JoyStick Y2			// Vu
 
-    an103_2 = S12AD1.ADDR3;			// VR1 Y@@ 180528
-    an003_2 = S12AD0.ADDR3;                       // VR1 X@@ 180528
-    /* 電流は谷割込みのみ有効 */
-    if(YT_cnt_2 == 1)  /* Y150614 */
-    {
-        an000_2 = S12AD1.ADDR0A;		// Iu	// @***** S
-        an001_2 = S12AD1.ADDR2;			// Iw	// @***** S
-        an102_2 = S12AD1.ADDR1;			// Iv	// @***** S
-    }
-    else  /* 山割込みの値は不使用 */
-    {
-        anTMP = S12AD1.ADDR0A;			// Iu	// @***** S
-        anTMP = S12AD1.ADDR2;			// Iw	// @***** S
-        anTMP = S12AD1.ADDR1;			// Iv	// @***** S
-    }
+        an103_2 = S12AD1.ADDR3;			// VR1 Y@@ 180528
+        an003_2 = S12AD0.ADDR3;                       // VR1 X@@ 180528
+        /* 電流は谷割込みのみ有効 */
+        if(YT_cnt_2 == 1)  /* Y150614 */
+        {
+            an000_2 = S12AD1.ADDR0A;		// Iu	// @***** S
+            an001_2 = S12AD1.ADDR2;			// Iw	// @***** S
+            an102_2 = S12AD1.ADDR1;			// Iv	// @***** S
+        }
+        else  /* 山割込みの値は不使用 */
+        {
+            anTMP = S12AD1.ADDR0A;			// Iu	// @***** S
+            anTMP = S12AD1.ADDR2;			// Iw	// @***** S
+            anTMP = S12AD1.ADDR1;			// Iv	// @***** S
+        }
 
-    /* 相電流 */
-    iu_ad_2  = -((float)(an000_2 - 2048))/(4096.0f) - offset_u_2;/*  */
-    iv_ad_2  = -((float)(an102_2 - 2048))/(4096.0f) - offset_v_2;/*  */
-    iw_ad_2  = -((float)(an001_2 - 2048))/(4096.0f) - offset_w_2;/*  */
-
-
-    vr2_adi_2=-((an103_2-fyi_2)/ydiv);
-    Rotatei_2 =((an003_2-fxi_2)/xdiv);
-
-    vr2_ad_2 += (vr2_adi_2- vr2_ad_2 )*LPF_ad_2;
-    Rotate_2 += (Rotatei_2-Rotate_2)*LPF_ad_2;
-
-    /************Initialize*******************/
+        /* 相電流 */
+        iu_ad_2  = -((float)(an000_2 - 2048))/(4096.0f) - offset_u_2;/*  */
+        iv_ad_2  = -((float)(an102_2 - 2048))/(4096.0f) - offset_v_2;/*  */
+        iw_ad_2  = -((float)(an001_2 - 2048))/(4096.0f) - offset_w_2;/*  */
 
 
-    if((vr2_ad_2<(jth-0.0))&&(vr2_ad_2>-(jth-0.0))) { //vr1_ad 0604 0.02
-        if((Rotate_2<(jthr-0.0))&&(Rotate_2>-(jthr-0.0))) {   // 追加　0609 0.02
+        vr2_adi_2=-((an103_2-fyi_2)/ydiv);
+        Rotatei_2 =((an003_2-fxi_2)/xdiv);
 
-            pth=0;
-            jth=0.05;
+        vr2_ad_2 += (vr2_adi_2- vr2_ad_2 )*LPF_ad_2;
+        Rotate_2 += (Rotatei_2-Rotate_2)*LPF_ad_2;
 
-            if((Rot_2==1)&&(jNorm_2==0)) {
-                DRV_sts = 0;
-                DRV_sts_2 = 0;
+        /************Initialize*******************/
+
+
+        if((vr2_ad_2<(jth-0.0))&&(vr2_ad_2>-(jth-0.0))) { //vr1_ad 0604 0.02
+            if((Rotate_2<(jthr-0.0))&&(Rotate_2>-(jthr-0.0))) {   // 追加　0609 0.02
+
+                pth=0;
+                //jth=0.05;
+
+
+
+                PORTE.DR.BIT.B5=0;
+                work_init_m2();
+
+                kpACR_2 =0;// 0.0665;	/* 比例ゲイン 100[rad/s]*/
+                kiACR_2 =0;// 0.00165;	/* 積分ゲイン 100[rad/s] 2018.4.16 変更*/
+
+                kpASR_2 =0;//0.084;//Speed
+                kiASR_2= 0;//=0.0015;
+                Power2=0;
+
+            }
+            else {
+                PORTE.DR.BIT.B5=1;
+            }
+        }
+        else {
+            PORTE.DR.BIT.B5=1;   //Inverter EN
+        }
+        /*******************************************************************/
+//    initm2=1;
+        /* ボリュームの電圧 */
+        //vr2_ad_2 = -((an103 - 2000.0)/4096.0)*power2;	// @@ 17400602
+
+        if(fabs(s_LPF_N_2)>2) {
+            kpACR_2 = 0.55;	//0.0002
+            kiACR_2 = 0.0001;       //0.0005
+            kpASR_2 = 0.0008;//Speed0.0005
+            kiASR_2 = 0.00001;//00001
+            LPF_ad_2=0.025;//0.025
+            //Power2=0.015;//PowerP;
+            kpPLL_2 = 10.0;
+            kiPLL_2 =0.002;
+        }
+        else {
+            kpACR_2=0.55;//kpACR_2+0.001;
+            kiACR_2=0.0001;//kiACR_2+0.0002;
+            kpASR_2 =0.0008;//kpASR_2+0.00001;//Speed
+            kiASR_2 =0.000005;// kiASR_2+0.000002;
+            LPF_ad_2=0.025;//0.001
+            Power2=0.015;//Power2+0.00021;
+        }
+
+        /**********************************************************************/
+        /*    if((vr2_ad_2<(jth+pth))&&(vr2_ad_2>-(jth+pth))){//&&(Rot_2==1)){
+        	   if((Rotate_2>jthr)){//||(Rotate_2<-jthr)){
+        		   jNorm_2=0;
+        		   Rot_2=1;
+        		  // pth=0.2;
+        	   }
+        	   else{jNorm_2=1;}
+
+             }
+             else{jNorm_2=1;}
+
+               if((vr2_ad_2<(jth+pth))&&(vr2_ad_2>-(jth+pth))){//&&(Rot_2==1)){
+        	   if((Rotate_2<-jthr)){
+        		   jNorm_2=0;
+        		   Rot_2=1;
+        		  // pth=0.2;
+        	   }
+        	   else{jNorm_2=1;}
+
+             }
+             else{jNorm_2=1;}
+
+
+             if((Rotate_2>jthr)&&(Rot_2==1)){
+        	     vr2_ad_2 = -Rotate_2;
+        	     vr1_ad_2=  vr2_ad_2/Rotp;
+
+             }
+             else{}
+
+             if((Rotate_2<-jthr)&&(Rot_2==1)){
+        	     vr2_ad_2 = -Rotate_2;
+        	     vr1_ad_2=  vr2_ad_2/Rotp;
+
+             }
+             else{}*/
+        if((Rotate_2<=jthx)&&(Rotate_2>=-jthx)) {
+            Rp=1.0;
+        }
+        else {}
+
+        if(Rotate_2>jthx) {
+            Rp=0.0;
+
+        }
+        else {}
+
+        if(Rotate_2<-jthx) {
+            Rp=1.0;
+        }
+        else {}
+
+        // if(jNorm_2==1){   //migi
+        //jNorm_2=1;
+        // Rot_2=0;
+        //  vr1_ad_2=vr2_ad_2*(0.5 - Rotate_2);
+        // vr1_ad_2=vr2_ad_2;
+        vr1_ad_2=(vr2_ad_2-Rotate_2)*Rp;//vr2_ad_2 - Rotate_2;
+        //  }
+        // else{}
+
+
+        /* if((vr2_ad_2>jth)&&(jNorm_2==1)){ // 2nd wheel Forwaord migi
+
+            Rot_2=0;
+           //jth=0.02;
+          // vr1_ad_2=(vr2_ad_2/1.0)+(Rotate_2)/2.0;
+
+             vr1_ad_2=vr2_ad_2/dp2;
+
+            if(Rotate_2<-jthx){ //Left Forward
+
+                vr1_ad_2= vr2_ad_2/dp2 -Rotate_2/dpr2;
+
+             }
+             else{}
+
+             if(Rotate_2>jthx){//Right Forward
+
+        	 vr1_ad_2=vr2_ad_2/dp2 - Rotate_2/dpr2;
+
+             }
+             else{}
+
+          }
+          else{}
+
+          if((vr2_ad_2<-jth)&&(jNorm_2==1)){  // 2nd wheel back migi
+
+                    vr1_ad_2=(vr2_ad_2)/dp2;
+             Rot_2=0;
+             //jth=0.03;
+            if(Rotate_2<-jthx){ //Left Back
+
+             vr1_ad_2= vr2_ad_2/dp2+(Rotate_2)/dpr2;
+             }
+             else{}
+
+             if(Rotate_2>jthx){//Right back
+
+        	 vr1_ad_2=vr2_ad_2/dp2+(Rotate_2)/dpr2;
+
+             }
+             else{}
+
+          }
+          else{}*/
+
+
+        /* if(vr1_ad_2>=0.35){
+        vr1_ad_2=0.35;
+        }
+        else{}
+          if(vr1_ad_2<=-0.35){
+         vr1_ad_2=-0.35;
+        }
+        else{} */
+
+        /* ****************** */
+        /* Iuvw -> dq座標変換 */
+        /* ****************** */
+        /* 電流は谷割込みのみ有効 */
+        if(YT_cnt_2 == 1)  /*  */
+        {
+            /* UVW -> αβ */
+            Iac0_2 = 0.816496580928*(iu_ad_2 - 0.5*(iv_ad_2 + iw_ad_2));
+            /* ↑Iα=sqrt(2/3)*{Iu-(Iv+Iw)/2} */
+            Ibc0_2 = 0.7071067811866*(iv_ad_2 - iw_ad_2);
+            /* ↑Iβ=sqrt(1/2)*(Iv-Iw) */
+
+            if((PLL_ON_2 == 1)&&(S6_MODE_2 != 1))
+            {
+                SIN0_2 = sin(THdcPLL_2);/**/
+                COS0_2 = cos(THdcPLL_2);/**/
+            }
+            else
+            {
+                SIN0_2 = sin(THdc_2);/**/
+                COS0_2 = cos(THdc_2);/**/
+            }
+
+            /* αβ -> dq */
+            Idc0_2 = Iac0_2*COS0_2 +Ibc0_2*SIN0_2;  //  +
+            Iqc0_2 =  -Iac0_2*SIN0_2 + Ibc0_2*COS0_2; //  -
+        }
+        else {}
+        s_LPF_id0_2 += (Idc0_2 - s_LPF_id0_2)*k_LPF_id0_2;
+        s_LPF_iq0_2 += (Iqc0_2 - s_LPF_iq0_2)*k_LPF_iq0_2;
+        /* *********************************************** */
+        /* [ 1 ] 速度検出↓ */
+        /* *********************************************** */
+        /* MTU1.TGRBにキャプチャ発生 */
+        /* MTU1.TGRAにキャプチャ発生 */
+        if(MTU1.TSR.BIT.TGFA == 1)       //0606 B
+        {
+            TC_cnt_3A_2 = MTU1.TGRA;			// @@ 180528 0606 B
+            MTU1.TSR.BIT.TGFA = 0;				// @@ 180528 0606 B
+            //TC_cnt_3A_2 = MTU3.TGRA;
+            //MTU3.TSR.BIT.TGFB = 0;
+            TC_FLG_2 = 1;  /* キャプチャ発生フラグ */
+            TC_cnt_Hole_2 = TC_cnt_3A_2;/**/
+            t_cnt_2 = TC_cnt_3A_2 - TC_cnt_3A_1_2;
+            if(t_cnt_2<1) {
+                t_cnt_2=1;
+            }
+            else {}
+            if(t_cnt_2>=cNrpm_P/kdiv) {
+                t_cnt_2=cNrpm_P;
             }
             else {}
 
-            PORTE.DR.BIT.B5=0;
-            work_init_m2();
+            // Nrpm = (cNrpm_P/2/t_cnt*2)
+            // cNrpm_P = 60 * cIMCLK_FRQ * 1000 / cTr2 * 1000 / cPole); cPole=8;cTr2=64;
+            Nrpm_2 = (float)(cNrpm_P / t_cnt_2);		// cNrpm_P=60/cPole*96000000/cTr2; @@ 180528
+            //Nrpm_2 = (float)(9000000 / t_cnt_2);		// P=10	60/10*96000000/64 @*****
+            //Nrpm_2 = (float)(11250000 / t_cnt_2);		// P=8	60/8*96000000/64 @*****
+            kaiten_2=(float)(cNrpm_P / t_cnt_2);
 
-            kpACR_2 =0;// 0.0665;	/* 比例ゲイン 100[rad/s]*/
-            kiACR_2 =0;// 0.00165;	/* 積分ゲイン 100[rad/s] 2018.4.16 変更*/
-
-            kpASR_2 =0;//0.084;//Speed
-            kiASR_2= 0;//=0.0015;
-            Power2=0;
-
-        }
-        else {
-            PORTE.DR.BIT.B5=1;
-        }
-    }
-    else {
-        PORTE.DR.BIT.B5=1;   //Inverter EN
-    }
-    /*******************************************************************/
-//    initm2=1;
-    /* ボリュームの電圧 */
-    //vr2_ad_2 = -((an103 - 2000.0)/4096.0)*power2;	// @@ 17400602
-
-    if(fabs(s_LPF_N_2)>2) {
-        kpACR_2 = 0.55;	//0.0002
-        kiACR_2 = 0.0001;       //0.0005
-        kpASR_2 = 0.0008;//Speed0.0005
-        kiASR_2 = 0.00001;//00001
-        LPF_ad_2=0.025;//0.025
-        //Power2=0.015;//PowerP;
-        kpPLL_2 = 10.0;
-        kiPLL_2 =0.002;
-    }
-    else {
-        kpACR_2=0.55;//kpACR_2+0.001;
-        kiACR_2=0.0001;//kiACR_2+0.0002;
-        kpASR_2 =0.0008;//kpASR_2+0.00001;//Speed
-        kiASR_2 =0.000005;// kiASR_2+0.000002;
-        LPF_ad_2=0.025;//0.001
-        Power2=0.015;//Power2+0.00021;
-    }
-
-    /**********************************************************************/
-    /*    if((vr2_ad_2<(jth+pth))&&(vr2_ad_2>-(jth+pth))){//&&(Rot_2==1)){
-    	   if((Rotate_2>jthr)){//||(Rotate_2<-jthr)){
-    		   jNorm_2=0;
-    		   Rot_2=1;
-    		  // pth=0.2;
-    	   }
-    	   else{jNorm_2=1;}
-
-         }
-         else{jNorm_2=1;}
-
-           if((vr2_ad_2<(jth+pth))&&(vr2_ad_2>-(jth+pth))){//&&(Rot_2==1)){
-    	   if((Rotate_2<-jthr)){
-    		   jNorm_2=0;
-    		   Rot_2=1;
-    		  // pth=0.2;
-    	   }
-    	   else{jNorm_2=1;}
-
-         }
-         else{jNorm_2=1;}
-
-
-         if((Rotate_2>jthr)&&(Rot_2==1)){
-    	     vr2_ad_2 = -Rotate_2;
-    	     vr1_ad_2=  vr2_ad_2/Rotp;
-
-         }
-         else{}
-
-         if((Rotate_2<-jthr)&&(Rot_2==1)){
-    	     vr2_ad_2 = -Rotate_2;
-    	     vr1_ad_2=  vr2_ad_2/Rotp;
-
-         }
-         else{}*/
-    if((Rotate_2<=jthx)&&(Rotate_2>=-jthx)) {
-        Rp=1.0;
-    }
-    else {}
-
-    if(Rotate_2>jthx) {
-        Rp=0.0;
-
-    }
-    else {}
-
-    if(Rotate_2<-jthx) {
-        Rp=1.0;
-    }
-    else {}
-
-    // if(jNorm_2==1){   //migi
-    //jNorm_2=1;
-    // Rot_2=0;
-    //  vr1_ad_2=vr2_ad_2*(0.5 - Rotate_2);
-    // vr1_ad_2=vr2_ad_2;
-    vr1_ad_2=(vr2_ad_2-Rotate_2)*Rp;//vr2_ad_2 - Rotate_2;
-    //  }
-    // else{}
-
-
-    /* if((vr2_ad_2>jth)&&(jNorm_2==1)){ // 2nd wheel Forwaord migi
-
-        Rot_2=0;
-       //jth=0.02;
-      // vr1_ad_2=(vr2_ad_2/1.0)+(Rotate_2)/2.0;
-
-         vr1_ad_2=vr2_ad_2/dp2;
-
-        if(Rotate_2<-jthx){ //Left Forward
-
-            vr1_ad_2= vr2_ad_2/dp2 -Rotate_2/dpr2;
-
-         }
-         else{}
-
-         if(Rotate_2>jthx){//Right Forward
-
-    	 vr1_ad_2=vr2_ad_2/dp2 - Rotate_2/dpr2;
-
-         }
-         else{}
-
-      }
-      else{}
-
-      if((vr2_ad_2<-jth)&&(jNorm_2==1)){  // 2nd wheel back migi
-
-                vr1_ad_2=(vr2_ad_2)/dp2;
-         Rot_2=0;
-         //jth=0.03;
-        if(Rotate_2<-jthx){ //Left Back
-
-         vr1_ad_2= vr2_ad_2/dp2+(Rotate_2)/dpr2;
-         }
-         else{}
-
-         if(Rotate_2>jthx){//Right back
-
-    	 vr1_ad_2=vr2_ad_2/dp2+(Rotate_2)/dpr2;
-
-         }
-         else{}
-
-      }
-      else{}*/
-
-
-    /* if(vr1_ad_2>=0.35){
-    vr1_ad_2=0.35;
-    }
-    else{}
-      if(vr1_ad_2<=-0.35){
-     vr1_ad_2=-0.35;
-    }
-    else{} */
-
-    /* ****************** */
-    /* Iuvw -> dq座標変換 */
-    /* ****************** */
-    /* 電流は谷割込みのみ有効 */
-    if(YT_cnt_2 == 1)  /*  */
-    {
-        /* UVW -> αβ */
-        Iac0_2 = 0.816496580928*(iu_ad_2 - 0.5*(iv_ad_2 + iw_ad_2));
-        /* ↑Iα=sqrt(2/3)*{Iu-(Iv+Iw)/2} */
-        Ibc0_2 = 0.7071067811866*(iv_ad_2 - iw_ad_2);
-        /* ↑Iβ=sqrt(1/2)*(Iv-Iw) */
-
-        if((PLL_ON_2 == 1)&&(S6_MODE_2 != 1))
-        {
-            SIN0_2 = sin(THdcPLL_2);/**/
-            COS0_2 = cos(THdcPLL_2);/**/
-        }
-        else
-        {
-            SIN0_2 = sin(THdc_2);/**/
-            COS0_2 = cos(THdc_2);/**/
-        }
-
-        /* αβ -> dq */
-        Idc0_2 = Iac0_2*COS0_2 +Ibc0_2*SIN0_2;  //  +
-        Iqc0_2 =  -Iac0_2*SIN0_2 + Ibc0_2*COS0_2; //  -
-    }
-    else {}
-    s_LPF_id0_2 += (Idc0_2 - s_LPF_id0_2)*k_LPF_id0_2;
-    s_LPF_iq0_2 += (Iqc0_2 - s_LPF_iq0_2)*k_LPF_iq0_2;
-    /* *********************************************** */
-    /* [ 1 ] 速度検出↓ */
-    /* *********************************************** */
-    /* MTU1.TGRBにキャプチャ発生 */
-    /* MTU1.TGRAにキャプチャ発生 */
-    if(MTU1.TSR.BIT.TGFA == 1)       //0606 B
-    {
-        TC_cnt_3A_2 = MTU1.TGRA;			// @@ 180528 0606 B
-        MTU1.TSR.BIT.TGFA = 0;				// @@ 180528 0606 B
-        //TC_cnt_3A_2 = MTU3.TGRA;
-        //MTU3.TSR.BIT.TGFB = 0;
-        TC_FLG_2 = 1;  /* キャプチャ発生フラグ */
-        TC_cnt_Hole_2 = TC_cnt_3A_2;/**/
-        t_cnt_2 = TC_cnt_3A_2 - TC_cnt_3A_1_2;
-        if(t_cnt_2<1) {
-            t_cnt_2=1;
-        }
-        else {}
-        if(t_cnt_2>=cNrpm_P/kdiv) {
-            t_cnt_2=cNrpm_P;
-        }
-        else {}
-
-        // Nrpm = (cNrpm_P/2/t_cnt*2)
-        // cNrpm_P = 60 * cIMCLK_FRQ * 1000 / cTr2 * 1000 / cPole); cPole=8;cTr2=64;
-        Nrpm_2 = (float)(cNrpm_P / t_cnt_2);		// cNrpm_P=60/cPole*96000000/cTr2; @@ 180528
-        //Nrpm_2 = (float)(9000000 / t_cnt_2);		// P=10	60/10*96000000/64 @*****
-        //Nrpm_2 = (float)(11250000 / t_cnt_2);		// P=8	60/8*96000000/64 @*****
-        kaiten_2=(float)(cNrpm_P / t_cnt_2);
-
-        if( ((Nrpm_2-Nrpm_1_2)<EMR_DRPM) && ((Nrpm_2-Nrpm_1_2)>(-EMR_DRPM)) )
-        {   /* 速度異常 */
-            Nrpm_1_2 = Nrpm_2;
-        }
-        else
-        {
-            Nrpm_2 = Nrpm_1_2;
-        }
-        TC_cnt_3A_1_2 = TC_cnt_3A_2;
-    }
-    else {}
-    /* MTU2.TGRAにキャプチャ発生 */
-    /* MTU1.TGRBにキャプチャ発生 */
-    if(MTU1.TSR.BIT.TGFB == 1)
-    {
-        TC_cnt_3C_2 = MTU1.TGRB;  //0606 MTU2.TGRA
-        MTU1.TSR.BIT.TGFB = 0;    // 0606 MTU2.TSR.BIT.TGFA = 0;
-
-        TC_FLG_2 = 1;  /* キャプチャ発生フラグ */
-        TC_cnt_Hole_2 = TC_cnt_3C_2;/**/
-
-        t_cnt_2 = TC_cnt_3C_2 - TC_cnt_3C_1_2;
-        if(t_cnt_2<1) {
-            t_cnt_2=1;
-        }
-        else {}
-        if(t_cnt_2>=cNrpm_P/kdiv) {
-            t_cnt_2=cNrpm_P;
-        }
-        else {}
-        // Nrpm = (cNrpm_P/2/t_cnt*2)
-        // cNrpm_P = 60 * cIMCLK_FRQ * 1000 / cTr2 * 1000 / cPole); cPole=8;cTr2=64;
-        Nrpm_2 = (float)(cNrpm_P / t_cnt_2);		// cNrpm_P=60/cPole*96000000/cTr2; @@ 180528
-        //Nrpm_2 = (float)(9000000 / t_cnt_2);		// P=10	60/10*96000000/64 @*****
-        //Nrpm_2 = (float)(11250000 / t_cnt_2);		// P=8	60/8*96000000/64 @*****
-
-        if( ((Nrpm_2-Nrpm_1_2)<EMR_DRPM) && ((Nrpm_2-Nrpm_1_2)>(-EMR_DRPM)) )
-        {   /* 速度異常 */
-            Nrpm_1_2 = Nrpm_2;
-        }
-        else
-        {
-            Nrpm_2 = Nrpm_1_2;
-        }
-        TC_cnt_3C_1_2 = TC_cnt_3C_2;
-    }
-    else {}
-    /* MTU1.TGRAにキャプチャ発生 */
-    /* MTU2.TGRAにキャプチャ発生 */
-    if(MTU2.TSR.BIT.TGFA == 1)    //0606 MTU1
-    {
-        TC_cnt_1A_2 = MTU2.TGRA;//0606 MTU1
-        MTU2.TSR.BIT.TGFA = 0;//0606 MTU1
-        TC_FLG_2 = 1;  /* キャプチャ発生フラグ */
-        TC_cnt_Hole_2 = TC_cnt_1A_2;/**/
-
-        t_cnt_2 = TC_cnt_1A_2 - TC_cnt_1A_1_2;
-        //t_cnt_2 = TC_cnt_1A_1_2 - TC_cnt_1A_2;
-        if(t_cnt_2<1) {
-            t_cnt_2=1;
-        }
-        else {}
-        if(t_cnt_2>=cNrpm_P/kdiv) {
-            t_cnt_2=cNrpm_P;
-        }
-        else {}
-        // Nrpm = (cNrpm_P/2/t_cnt*2)
-        // cNrpm_P = 60 * cIMCLK_FRQ * 1000 / cTr2 * 1000 / cPole); cPole=8;cTr2=64;
-        Nrpm_2 = (float)(cNrpm_P / t_cnt_2);		// cNrpm_P=60/cPole*96000000/cTr2; @@ 180528
-        //Nrpm_2 = (float)(9000000 / t_cnt_2);		// P=10	60/10*96000000/64 @*****
-        //Nrpm_2 = (float)(11250000 / t_cnt_2);		// P=8	60/8*96000000/64 @*****
-
-        if( ((Nrpm_2-Nrpm_1_2)<EMR_DRPM) && ((Nrpm_2-Nrpm_1_2)>(-EMR_DRPM)) )
-        {   /* 速度異常 */
-            Nrpm_1_2 = Nrpm_2;
-        }
-        else
-        {
-            Nrpm_2 = Nrpm_1_2;
-        }
-        TC_cnt_1A_1_2 = TC_cnt_1A_2;
-    }
-    else {}
-    /* 正転，逆転のチェック */
-    if(R_DR_2==1)/* 正転 */
-    {
-        Nrpm_s_2 = Nrpm_2;
-    }
-    else/* 逆転 */
-    {
-        Nrpm_s_2 = -Nrpm_2;  //aki -Nrpm
-    }
-    /* 速度フィルタ */
-    s_LPF_N_2 += (Nrpm_s_2 - s_LPF_N_2 )*k_LPF_N_2;
-    s_LPF_N2_2 += (Nrpm_s_2 - s_LPF_N2_2 )*k_LPF_N2_2;
-    kaiten_2 +=(Nrpm_s - s_LPF_N )*k_LPF_N;
-
-    // f[Hz]= Nrpm*cF_P; 計算定数 cF_P=cPole/60/2; cPole=8;
-    Fe1_2 = s_LPF_N_2*cF_P;		// cF_P = 8/60/2=0.06666667;// @*****
-    //Fe1_2 = s_LPF_N2_2*0.08333333333;	// f[Hz]= Nrpm/60/2*10[pole]	// @*****
-    //Fe1_2 = s_LPF_N2_2*0.06666666667;	// f[Hz]= Nrpm/60/2*8[pole]	// @*****
-
-    We1_2 = TWOPI*Fe1_2;  /* ω1 = 2π・f1 */
-    dTHdc_2 = Ts0*We1_2;  /* θs = ω1・Ts */
-    /* Hole IC PLL  */
-    if(	TC_FLG_2 == 1)  /* キャプチャ発生時の速度領域 */
-    {
-        if(s_LPF_N_2 > NRPM_MIN)  /* 正転 */
-        {
-            S6_MODE_2 = 2;/* 0: -sin, 1:6step, 2:+sin */
-        }
-        else
-        {
-            if(s_LPF_N_2 < (-NRPM_MIN))  /* 逆転 */
-            {
-                S6_MODE_2 = 0;/* 0: -sin, 1:6step, 2:+sin  aki 0 */
+            if( ((Nrpm_2-Nrpm_1_2)<EMR_DRPM) && ((Nrpm_2-Nrpm_1_2)>(-EMR_DRPM)) )
+            {   /* 速度異常 */
+                Nrpm_1_2 = Nrpm_2;
             }
-            else  /* 零付近ウロウロ */
+            else
             {
-                S6_MODE_2 = 1;/* 0: -sin, 1:6step, 2:+sin */
-                //I_ref_q_ini=Start; //0602
+                Nrpm_2 = Nrpm_1_2;
             }
+            TC_cnt_3A_1_2 = TC_cnt_3A_2;
         }
-        //if(vr1_ad_2>0.05){  // vr1_ad_2>0.05 0602
-        // サンプル開始までのずれ角計算定数 cdt_P=cTr2/cIMCLK_FRQ/1000000; cTr2=64; IMCLK_FRQ=96[MHz]
-        // cdt_P = cTr2 / cIMCLK_FRQ / 1000000.= 64/96000000[Hz]=0.00000007
-        dTH_hole_2 = cdt_P*((float)( TC_cnt_Ts_2 - TC_cnt_Hole_2))*We1_2;	// @*****
-        //dTH_hole_2 = 0.0000666666667*((float)( TC_cnt_Ts_2 - TC_cnt_Hole_2))*We1_2;	// @*****
-        // ↑サンプル開始までのずれ角 dt=1/1500000  (1500000=96MHz/64)
-        // dTH_hole_2 = 0.0000026666667*((float)( TC_cnt_Ts_2 - TC_cnt_Hole_2))*We1_2;	// @*****
-        // ↑サンプル開始までのずれ角 dt=1/375000  (375000=96MHz/256)
-        //}
-        //else
-        //{
-        // サンプル開始までのずれ角計算定数 cdt_P=cTr2/cIMCLK_FRQ/1000000; cTr2=64; IMCLK_FRQ=96[MHz]
-        // cdt_P = cTr2 / cIMCLK_FRQ / 1000000.= 64/96000000[Hz]=0.00000007
-        //  dTH_hole_2 = cdt_P*((float)( TC_cnt_Ts_2 - TC_cnt_Hole_2))*We1_2;	// @*****
-        // ↑サンプル開始までのずれ角
-        //dTH_hole_2 = 0.0000666666667*((float)( TC_cnt_Ts_2 - TC_cnt_Hole_2))*We1_2;	// @*****
-        // ↑サンプル開始までのずれ角 dt=1/1500000  (1500000=96MHz/64)
-        //dTH_hole_2 = 0.0000026666667*((float)( TC_cnt_Ts_2 - TC_cnt_Hole_2))*We1_2;	// @*****
-        // ↑サンプル開始までのずれ角 dt=1/375000  (375000=96MHz/256)
-        //}
+        else {}
+        /* MTU2.TGRAにキャプチャ発生 */
+        /* MTU1.TGRBにキャプチャ発生 */
+        if(MTU1.TSR.BIT.TGFB == 1)
+        {
+            TC_cnt_3C_2 = MTU1.TGRB;  //0606 MTU2.TGRA
+            MTU1.TSR.BIT.TGFB = 0;    // 0606 MTU2.TSR.BIT.TGFA = 0;
 
-        if((dTH_hole_2 > DEG030N)||(dTH_hole_2 < (-DEG030N)))
+            TC_FLG_2 = 1;  /* キャプチャ発生フラグ */
+            TC_cnt_Hole_2 = TC_cnt_3C_2;/**/
+
+            t_cnt_2 = TC_cnt_3C_2 - TC_cnt_3C_1_2;
+            if(t_cnt_2<1) {
+                t_cnt_2=1;
+            }
+            else {}
+            if(t_cnt_2>=cNrpm_P/kdiv) {
+                t_cnt_2=cNrpm_P;
+            }
+            else {}
+            // Nrpm = (cNrpm_P/2/t_cnt*2)
+            // cNrpm_P = 60 * cIMCLK_FRQ * 1000 / cTr2 * 1000 / cPole); cPole=8;cTr2=64;
+            Nrpm_2 = (float)(cNrpm_P / t_cnt_2);		// cNrpm_P=60/cPole*96000000/cTr2; @@ 180528
+            //Nrpm_2 = (float)(9000000 / t_cnt_2);		// P=10	60/10*96000000/64 @*****
+            //Nrpm_2 = (float)(11250000 / t_cnt_2);		// P=8	60/8*96000000/64 @*****
+
+            if( ((Nrpm_2-Nrpm_1_2)<EMR_DRPM) && ((Nrpm_2-Nrpm_1_2)>(-EMR_DRPM)) )
+            {   /* 速度異常 */
+                Nrpm_1_2 = Nrpm_2;
+            }
+            else
+            {
+                Nrpm_2 = Nrpm_1_2;
+            }
+            TC_cnt_3C_1_2 = TC_cnt_3C_2;
+        }
+        else {}
+        /* MTU1.TGRAにキャプチャ発生 */
+        /* MTU2.TGRAにキャプチャ発生 */
+        if(MTU2.TSR.BIT.TGFA == 1)    //0606 MTU1
+        {
+            TC_cnt_1A_2 = MTU2.TGRA;//0606 MTU1
+            MTU2.TSR.BIT.TGFA = 0;//0606 MTU1
+            TC_FLG_2 = 1;  /* キャプチャ発生フラグ */
+            TC_cnt_Hole_2 = TC_cnt_1A_2;/**/
+
+            t_cnt_2 = TC_cnt_1A_2 - TC_cnt_1A_1_2;
+            //t_cnt_2 = TC_cnt_1A_1_2 - TC_cnt_1A_2;
+            if(t_cnt_2<1) {
+                t_cnt_2=1;
+            }
+            else {}
+            if(t_cnt_2>=cNrpm_P/kdiv) {
+                t_cnt_2=cNrpm_P;
+            }
+            else {}
+            // Nrpm = (cNrpm_P/2/t_cnt*2)
+            // cNrpm_P = 60 * cIMCLK_FRQ * 1000 / cTr2 * 1000 / cPole); cPole=8;cTr2=64;
+            Nrpm_2 = (float)(cNrpm_P / t_cnt_2);		// cNrpm_P=60/cPole*96000000/cTr2; @@ 180528
+            //Nrpm_2 = (float)(9000000 / t_cnt_2);		// P=10	60/10*96000000/64 @*****
+            //Nrpm_2 = (float)(11250000 / t_cnt_2);		// P=8	60/8*96000000/64 @*****
+
+            if( ((Nrpm_2-Nrpm_1_2)<EMR_DRPM) && ((Nrpm_2-Nrpm_1_2)>(-EMR_DRPM)) )
+            {   /* 速度異常 */
+                Nrpm_1_2 = Nrpm_2;
+            }
+            else
+            {
+                Nrpm_2 = Nrpm_1_2;
+            }
+            TC_cnt_1A_1_2 = TC_cnt_1A_2;
+        }
+        else {}
+        /* 正転，逆転のチェック */
+        if(R_DR_2==1)/* 正転 */
+        {
+            Nrpm_s_2 = Nrpm_2;
+        }
+        else/* 逆転 */
+        {
+            Nrpm_s_2 = -Nrpm_2;  //aki -Nrpm
+        }
+        /* 速度フィルタ */
+        s_LPF_N_2 += (Nrpm_s_2 - s_LPF_N_2 )*k_LPF_N_2;
+        s_LPF_N2_2 += (Nrpm_s_2 - s_LPF_N2_2 )*k_LPF_N2_2;
+        kaiten_2 +=(Nrpm_s - s_LPF_N )*k_LPF_N;
+
+        // f[Hz]= Nrpm*cF_P; 計算定数 cF_P=cPole/60/2; cPole=8;
+        Fe1_2 = s_LPF_N_2*cF_P;		// cF_P = 8/60/2=0.06666667;// @*****
+        //Fe1_2 = s_LPF_N2_2*0.08333333333;	// f[Hz]= Nrpm/60/2*10[pole]	// @*****
+        //Fe1_2 = s_LPF_N2_2*0.06666666667;	// f[Hz]= Nrpm/60/2*8[pole]	// @*****
+
+        We1_2 = TWOPI*Fe1_2;  /* ω1 = 2π・f1 */
+        dTHdc_2 = Ts0*We1_2;  /* θs = ω1・Ts */
+        /* Hole IC PLL  */
+        if(	TC_FLG_2 == 1)  /* キャプチャ発生時の速度領域 */
+        {
+            if(s_LPF_N_2 > NRPM_MIN)  /* 正転 */
+            {
+                S6_MODE_2 = 2;/* 0: -sin, 1:6step, 2:+sin */
+            }
+            else
+            {
+                if(s_LPF_N_2 < (-NRPM_MIN))  /* 逆転 */
+                {
+                    S6_MODE_2 = 0;/* 0: -sin, 1:6step, 2:+sin  aki 0 */
+                }
+                else  /* 零付近ウロウロ */
+                {
+                    S6_MODE_2 = 1;/* 0: -sin, 1:6step, 2:+sin */
+                    //I_ref_q_ini=Start; //0602
+                }
+            }
+            //if(vr1_ad_2>0.05){  // vr1_ad_2>0.05 0602
+            // サンプル開始までのずれ角計算定数 cdt_P=cTr2/cIMCLK_FRQ/1000000; cTr2=64; IMCLK_FRQ=96[MHz]
+            // cdt_P = cTr2 / cIMCLK_FRQ / 1000000.= 64/96000000[Hz]=0.00000007
+            dTH_hole_2 = cdt_P*((float)( TC_cnt_Ts_2 - TC_cnt_Hole_2))*We1_2;	// @*****
+            //dTH_hole_2 = 0.0000666666667*((float)( TC_cnt_Ts_2 - TC_cnt_Hole_2))*We1_2;	// @*****
+            // ↑サンプル開始までのずれ角 dt=1/1500000  (1500000=96MHz/64)
+            // dTH_hole_2 = 0.0000026666667*((float)( TC_cnt_Ts_2 - TC_cnt_Hole_2))*We1_2;	// @*****
+            // ↑サンプル開始までのずれ角 dt=1/375000  (375000=96MHz/256)
+            //}
+            //else
+            //{
+            // サンプル開始までのずれ角計算定数 cdt_P=cTr2/cIMCLK_FRQ/1000000; cTr2=64; IMCLK_FRQ=96[MHz]
+            // cdt_P = cTr2 / cIMCLK_FRQ / 1000000.= 64/96000000[Hz]=0.00000007
+            //  dTH_hole_2 = cdt_P*((float)( TC_cnt_Ts_2 - TC_cnt_Hole_2))*We1_2;	// @*****
+            // ↑サンプル開始までのずれ角
+            //dTH_hole_2 = 0.0000666666667*((float)( TC_cnt_Ts_2 - TC_cnt_Hole_2))*We1_2;	// @*****
+            // ↑サンプル開始までのずれ角 dt=1/1500000  (1500000=96MHz/64)
+            //dTH_hole_2 = 0.0000026666667*((float)( TC_cnt_Ts_2 - TC_cnt_Hole_2))*We1_2;	// @*****
+            // ↑サンプル開始までのずれ角 dt=1/375000  (375000=96MHz/256)
+            //}
+
+            if((dTH_hole_2 > DEG030N)||(dTH_hole_2 < (-DEG030N)))
+            {
+                dTH_hole_2 = 0.0;
+            }
+            else {}
+        }
+        else
         {
             dTH_hole_2 = 0.0;
         }
-        else {}
-    }
-    else
-    {
-        dTH_hole_2 = 0.0;
-    }
 
-    /*  a_LPF_N_2=fabs(s_LPF_N_2);
+        /*  a_LPF_N_2=fabs(s_LPF_N_2);
 
-    if(a_LPF_N_2<40){
-    		kpPLL_2 = 40.0;	  //12.0
-                	kiPLL_2 =0.035;  //0.0035
+        if(a_LPF_N_2<40){
+        		kpPLL_2 = 40.0;	  //12.0
+                    	kiPLL_2 =0.035;  //0.0035
 
-    }
-    else{}
-    if((a_LPF_N_2>=40)&&(a_LPF_N_2<60)){
-    		kpPLL_2 = 50.0;
-                	kiPLL_2 =0.065;
+        }
+        else{}
+        if((a_LPF_N_2>=40)&&(a_LPF_N_2<60)){
+        		kpPLL_2 = 50.0;
+                    	kiPLL_2 =0.065;
 
-    }
-    else{}
-    if((a_LPF_N_2>=60)&&(a_LPF_N_2<90)){
-    		kpPLL_2 = 60.0;
-                	kiPLL_2=0.070;
+        }
+        else{}
+        if((a_LPF_N_2>=60)&&(a_LPF_N_2<90)){
+        		kpPLL_2 = 60.0;
+                    	kiPLL_2=0.070;
 
-    }
-    else{}
-    if((a_LPF_N_2>=90)){
-    		kpPLL_2 = 70.0;
-                	kiPLL_2 =0.0075;
+        }
+        else{}
+        if((a_LPF_N_2>=90)){
+        		kpPLL_2 = 70.0;
+                    	kiPLL_2 =0.0075;
 
-    }
-    else{}*/
+        }
+        else{}*/
 
-    HUVW_2 = UVW_in_m2(); /* Hole IC信号の状態 */
-    switch (HUVW_2)
-    {
-    case 1:
-        V_MODE_2 = 2;
-        break;
-    case 2:
-        V_MODE_2 = 4;
-        break;
-    case 3:
-        V_MODE_2 = 3;
-        break;
-    case 4:
-        V_MODE_2 = 6;
-        break;
-    case 5:
-        V_MODE_2 = 1;
-        break;
-    case 6:
-        V_MODE_2 = 5;
-        break;
-    default:
-        V_MODE_2 = 1;
-        break;
-    }
-    if((S6_MODE_2 == 2)&&(TC_FLG_2 == 1))
-    {
-        switch (V_MODE_2)
+        HUVW_2 = UVW_in_m2(); /* Hole IC信号の状態 */
+        switch (HUVW_2)
         {
         case 1:
-            TH_hole_2 = DEG150N;  /* θhole[rad] 210 */
+            V_MODE_2 = 2;
             break;
         case 2:
-            TH_hole_2 = DEG210N;  /* θhole[rad] 270 */
+            V_MODE_2 = 4;
             break;
         case 3:
-            TH_hole_2 = DEG270N;  /* θhole[rad] 330 */
+            V_MODE_2 = 3;
             break;
         case 4:
-            TH_hole_2 = DEG330N;  /* θhole[rad] 30 */
+            V_MODE_2 = 6;
             break;
         case 5:
-            TH_hole_2 = DEG030N;  /* θhole[rad] 90 */
+            V_MODE_2 = 1;
             break;
         case 6:
-            TH_hole_2 = DEG090N;  /* θhole[rad] 150 */
+            V_MODE_2 = 5;
             break;
         default:
-            TH_hole_2 = DEG150N;  /* θhole[rad] 210 */
+            V_MODE_2 = 1;
             break;
         }
-        THdc_2 = TH_hole_2 + dTH_hole_2;
-        TH_sin_on_2 = 1;
-
-        THdc_err_2 = THdc_2 - THdcPLL_2;
-        while(THdc_err_2 > ONEPI)  /* 「-π < θdc < π」に制限 */
+        if((S6_MODE_2 == 2)&&(TC_FLG_2 == 1))
         {
-            THdc_err_2 -= TWOPI;
-        }
-        while(THdc_err_2 < (-ONEPI))  /* 「-π < θdc < π」に制限 */
-        {
-            THdc_err_2 += TWOPI;
-        }/**/
-    }
-    else {}
-    if((S6_MODE_2 == 0)&&(TC_FLG_2 == 1))
-    {
-        switch (V_MODE_2)
-        {
-        case 1:
-            TH_hole_2 = DEG270N;  /* θhole[rad] 270 */
-            break;
-        case 2:
-            TH_hole_2 = DEG330N;  /* θhole[rad] 330 */
-            break;
-        case 3:
-            TH_hole_2 = DEG030N;  /* θhole[rad] 30 */
-            break;
-        case 4:
-            TH_hole_2 = DEG090N;  /* θhole[rad] 90 */
-            break;
-        case 5:
-            TH_hole_2 = DEG150N;  /* θhole[rad] 150 */
-            break;
-        case 6:
-            TH_hole_2 = DEG210N;  /* θhole[rad] 210 */
-            break;
-        default:
-            TH_hole_2 = DEG270N;  /* θhole[rad] 270 */
-            break;
-
-        }
-        THdc_2 = TH_hole_2 + dTH_hole_2;//aki +
-        TH_sin_on_2 = 1;
-
-        THdc_err_2 = THdc_2 - THdcPLL_2; //aki -
-        while(THdc_err_2 >( ONEPI))  /* 「-π < θdc < π」に制限 */
-        {
-            THdc_err_2 -= TWOPI;  //aki -
-        }
-        while(THdc_err_2 < (-ONEPI))  /* 「-π < θdc < π」に制限 */
-        {
-            THdc_err_2 += TWOPI;  //aki+
-        }/**/
-    }
-    else {}
-    if(S6_MODE_2 == 1)
-    {
-
-        if(vr2_ad_2>=jth) {
             switch (V_MODE_2)
             {
             case 1:
-                TH_hole_2 = DEG240N;  //240
+                TH_hole_2 = DEG150N;  /* θhole[rad] 210 */
                 break;
             case 2:
-                TH_hole_2 = DEG300N;  //300
+                TH_hole_2 = DEG210N;  /* θhole[rad] 270 */
                 break;
             case 3:
-                TH_hole_2 = 0.0;//DEG060N;     //0.0
+                TH_hole_2 = DEG270N;  /* θhole[rad] 330 */
                 break;
             case 4:
-                TH_hole_2 = DEG060N;  //60
+                TH_hole_2 = DEG330N;  /* θhole[rad] 30 */
                 break;
             case 5:
-                TH_hole_2 = DEG120N;  //120
+                TH_hole_2 = DEG030N;  /* θhole[rad] 90 */
                 break;
             case 6:
-                TH_hole_2 = DEG180N;  //180
+                TH_hole_2 = DEG090N;  /* θhole[rad] 150 */
                 break;
             default:
-                TH_hole_2 =DEG240N;  //240
+                TH_hole_2 = DEG150N;  /* θhole[rad] 210 */
                 break;
             }
+            THdc_2 = TH_hole_2 + dTH_hole_2;
+            TH_sin_on_2 = 1;
+
+            THdc_err_2 = THdc_2 - THdcPLL_2;
+            while(THdc_err_2 > ONEPI)  /* 「-π < θdc < π」に制限 */
+            {
+                THdc_err_2 -= TWOPI;
+            }
+            while(THdc_err_2 < (-ONEPI))  /* 「-π < θdc < π」に制限 */
+            {
+                THdc_err_2 += TWOPI;
+            }/**/
         }
         else {}
-
-        if(vr2_ad_2<-jth) {
+        if((S6_MODE_2 == 0)&&(TC_FLG_2 == 1))
+        {
             switch (V_MODE_2)
             {
             case 1:
-                TH_hole_2 = DEG240N;  //249
+                TH_hole_2 = DEG270N;  /* θhole[rad] 270 */
                 break;
             case 2:
-                TH_hole_2 = DEG300N;  //300
+                TH_hole_2 = DEG330N;  /* θhole[rad] 330 */
                 break;
             case 3:
-                TH_hole_2 = 0.0;     //0.0
+                TH_hole_2 = DEG030N;  /* θhole[rad] 30 */
                 break;
             case 4:
-                TH_hole_2 = DEG060N;  //60
+                TH_hole_2 = DEG090N;  /* θhole[rad] 90 */
                 break;
             case 5:
-                TH_hole_2 = DEG120N;  //120
+                TH_hole_2 = DEG150N;  /* θhole[rad] 150 */
                 break;
             case 6:
-                TH_hole_2 = DEG180N;  //180
+                TH_hole_2 = DEG210N;  /* θhole[rad] 210 */
                 break;
             default:
-                TH_hole_2 =DEG240N;  //240
+                TH_hole_2 = DEG270N;  /* θhole[rad] 270 */
                 break;
+
             }
+            THdc_2 = TH_hole_2 + dTH_hole_2;//aki +
+            TH_sin_on_2 = 1;
+
+            THdc_err_2 = THdc_2 - THdcPLL_2; //aki -
+            while(THdc_err_2 >( ONEPI))  /* 「-π < θdc < π」に制限 */
+            {
+                THdc_err_2 -= TWOPI;  //aki -
+            }
+            while(THdc_err_2 < (-ONEPI))  /* 「-π < θdc < π」に制限 */
+            {
+                THdc_err_2 += TWOPI;  //aki+
+            }/**/
         }
         else {}
-        THdc_2 = TH_hole_2;//aki +
-        TH_sin_on_2 = 0;
-
-        THdcPLL_2 = THdc_2;/*aki+*/
-        THdc_err_2 = 0.0;/**/
-        s_kiPLL_2 = 0.0;/**/
-        //Start=St6;       //0601
-    }
-    else {/*Start=StV;*/}    //0601
-
-    TC_FLG_2 = 0;
-    if(TH_sin_on_2 == 1)
-    {
-        THdc_2 = THdc_2 + dTHdc_2;/* 次回のdq変換位相 */
-    }
-    else {}
-    while(THdc_2 > TWOPI)  /* 「0 < θdc < 2π」に制限 */
-    {
-        THdc_2 -= TWOPI;
-    }
-    while(THdc_2 < 0.0)
-    {
-        THdc_2 += TWOPI;
-    }
-    /************/
-    /*  PLL制御 */
-    /* ******** */
-    s_kiPLL_2 += kiPLL_2*THdc_err_2;  //0603
-    W1PLL_2 = s_kiPLL_2 + kpPLL_2*THdc_err_2;  //0603
-    THdcPLL_2 = THdcPLL_2 +  W1PLL_2*Ts0;
-    while(THdcPLL_2 > TWOPI)  /* 「0 < θdc < 2π」に制限 */
-    {
-        THdcPLL_2 -= TWOPI;
-    }
-    while(THdcPLL_2 < 0.0) //aki
-    {
-        THdcPLL_2 += TWOPI;
-    }
-    /* モードから位相がはみ出さないように処理 */
-    switch(V_MODE_2)
-    {
-    case 1:
-        if((DEG330N > THdc_2 )&&( THdc_2 > DEG270N )) {
-            THdc_2 = DEG270N;
-        }
-        else
+        if(S6_MODE_2 == 1)
         {
-            if(( DEG150N < THdc_2 )&&( THdc_2 < DEG210N )) {
-                THdc_2 = DEG210N;
+
+            if(vr2_ad_2>=jth) {
+                switch (V_MODE_2)
+                {
+                case 1:
+                    TH_hole_2 = DEG240N;  //240
+                    break;
+                case 2:
+                    TH_hole_2 = DEG300N;  //300
+                    break;
+                case 3:
+                    TH_hole_2 = 0.0;//DEG060N;     //0.0
+                    break;
+                case 4:
+                    TH_hole_2 = DEG060N;  //60
+                    break;
+                case 5:
+                    TH_hole_2 = DEG120N;  //120
+                    break;
+                case 6:
+                    TH_hole_2 = DEG180N;  //180
+                    break;
+                default:
+                    TH_hole_2 =DEG240N;  //240
+                    break;
+                }
             }
             else {}
+
+            if(vr2_ad_2<-jth) {
+                switch (V_MODE_2)
+                {
+                case 1:
+                    TH_hole_2 = DEG240N;  //249
+                    break;
+                case 2:
+                    TH_hole_2 = DEG300N;  //300
+                    break;
+                case 3:
+                    TH_hole_2 = 0.0;     //0.0
+                    break;
+                case 4:
+                    TH_hole_2 = DEG060N;  //60
+                    break;
+                case 5:
+                    TH_hole_2 = DEG120N;  //120
+                    break;
+                case 6:
+                    TH_hole_2 = DEG180N;  //180
+                    break;
+                default:
+                    TH_hole_2 =DEG240N;  //240
+                    break;
+                }
+            }
+            else {}
+            THdc_2 = TH_hole_2;//aki +
+            TH_sin_on_2 = 0;
+
+            THdcPLL_2 = THdc_2;/*aki+*/
+            THdc_err_2 = 0.0;/**/
+            s_kiPLL_2 = 0.0;/**/
+            //Start=St6;       //0601
         }
-        break;
-    case 2:
-        if(THdc_2 > DEG330N ) {
-            THdc_2 = DEG330N;
-        }
-        else
+        else {/*Start=StV;*/}    //0601
+
+        TC_FLG_2 = 0;
+        if(TH_sin_on_2 == 1)
         {
-            if((DEG210N < THdc_2 )&&( THdc_2 < DEG270N )) {
+            THdc_2 = THdc_2 + dTHdc_2;/* 次回のdq変換位相 */
+        }
+        else {}
+        while(THdc_2 > TWOPI)  /* 「0 < θdc < 2π」に制限 */
+        {
+            THdc_2 -= TWOPI;
+        }
+        while(THdc_2 < 0.0)
+        {
+            THdc_2 += TWOPI;
+        }
+        /************/
+        /*  PLL制御 */
+        /* ******** */
+        s_kiPLL_2 += kiPLL_2*THdc_err_2;  //0603
+        W1PLL_2 = s_kiPLL_2 + kpPLL_2*THdc_err_2;  //0603
+        THdcPLL_2 = THdcPLL_2 +  W1PLL_2*Ts0;
+        while(THdcPLL_2 > TWOPI)  /* 「0 < θdc < 2π」に制限 */
+        {
+            THdcPLL_2 -= TWOPI;
+        }
+        while(THdcPLL_2 < 0.0) //aki
+        {
+            THdcPLL_2 += TWOPI;
+        }
+        /* モードから位相がはみ出さないように処理 */
+        switch(V_MODE_2)
+        {
+        case 1:
+            if((DEG330N > THdc_2 )&&( THdc_2 > DEG270N )) {
                 THdc_2 = DEG270N;
             }
-            else {}
-        }
-        break;
-    case 3:
-        if(( DEG090N > THdc_2 )&&( THdc_2  > DEG030N )) {
-            THdc_2 = DEG030N;
-        }
-        else
-        {
-            if((DEG270N < THdc_2 )&&( THdc_2 < DEG330N )) {
+            else
+            {
+                if(( DEG150N < THdc_2 )&&( THdc_2 < DEG210N )) {
+                    THdc_2 = DEG210N;
+                }
+                else {}
+            }
+            break;
+        case 2:
+            if(THdc_2 > DEG330N ) {
                 THdc_2 = DEG330N;
             }
-            else {}
-        }
-        break;
-    case 4:
-        if((DEG150N > THdc_2 )&&( THdc_2 > DEG090N )) {
-            THdc_2 = DEG090N;
-        }
-        else
-        {
-            if(( 0 < THdc_2 )&&( THdc_2 < DEG030N )) {
+            else
+            {
+                if((DEG210N < THdc_2 )&&( THdc_2 < DEG270N )) {
+                    THdc_2 = DEG270N;
+                }
+                else {}
+            }
+            break;
+        case 3:
+            if(( DEG090N > THdc_2 )&&( THdc_2  > DEG030N )) {
                 THdc_2 = DEG030N;
             }
-            else {}
-        }
-        break;
-    case 5:
-        if((DEG210N > THdc_2 )&&( THdc_2 > DEG150N )) {
-            THdc_2 = DEG150N;
-        }
-        else
-        {
-            if(( DEG030N < THdc_2 )&&( THdc_2 < DEG090N )) {
+            else
+            {
+                if((DEG270N < THdc_2 )&&( THdc_2 < DEG330N )) {
+                    THdc_2 = DEG330N;
+                }
+                else {}
+            }
+            break;
+        case 4:
+            if((DEG150N > THdc_2 )&&( THdc_2 > DEG090N )) {
                 THdc_2 = DEG090N;
             }
-            else {}
+            else
+            {
+                if(( 0 < THdc_2 )&&( THdc_2 < DEG030N )) {
+                    THdc_2 = DEG030N;
+                }
+                else {}
+            }
+            break;
+        case 5:
+            if((DEG210N > THdc_2 )&&( THdc_2 > DEG150N )) {
+                THdc_2 = DEG150N;
+            }
+            else
+            {
+                if(( DEG030N < THdc_2 )&&( THdc_2 < DEG090N )) {
+                    THdc_2 = DEG090N;
+                }
+                else {}
+            }
+            break;
+        case 6:
+            if((DEG270N > THdc_2 )&&( THdc_2 > DEG210N )) {
+                THdc_2 = DEG210N;
+            }
+            else
+            {
+                if((DEG090N < THdc_2 )&&( THdc_2 < DEG150N )) {
+                    THdc_2 = DEG150N;
+                }
+                else {}
+            }
+            break;
+        default:
+            break;
         }
-        break;
-    case 6:
-        if((DEG270N > THdc_2 )&&( THdc_2 > DEG210N )) {
-            THdc_2 = DEG210N;
+        /* ↑ここまで（速度・位相計算） */
+        switch(DRV_sts_2)
+        {
+        case 0:
+            s_LPF_N_2 = 0.0;
+            s_LPF_N2_2 = 0.0;
+            break;
+        case 1:
+            s_LPF_N_2 = 0.0;
+            s_LPF_N2_2 = 0.0;
+            break;
+        case 2:
+            break;
+        case 3:
+            break;
+        default:
+            s_LPF_N_2 = 0.0;
+            s_LPF_N2_2 = 0.0;
+            break;
+        }
+        if (DRV_sts_2 == 0)
+        {
+            Nrpm_2 = 0.0;
+            Nrpm_1_2 = 0.0;
+        }
+        else {}
+        /* *********************************************** */
+        /* [ 2 ] 速度制御 ↓ */
+        /* *********************************************** */
+        /* 回転数指令，誤差信号の処理 */
+        switch(DRV_sts_2)
+        {
+        case 0:
+            Nrpm_ref_2 = 0.0;
+            Nerr_2 = 0.0;
+            break;
+        case 3:
+            Nrpm_ref0_2 = Nref1*vr1_ad_2; //aki vr1_ad_2 0602
+
+            if(Nrpm_ref0_2>0) {
+                // Nrpm_ref0_2 = Nref1*(vr1_ad_2-0.05);
+                if(Nref0_2 > Nrpm_ref0_2)
+                {
+                    Nref0_2 -= dN_HI_N; //aki -
+                    if(Nref0_2 < Nrpm_ref0_2)
+                    {
+                        Nref0_2 = Nrpm_ref0_2;
+                    }
+                    else {}
+                }
+                else {}
+
+                if(Nref0_2 < Nrpm_ref0_2)
+                {
+                    Nref0_2 += dN_HI_P;  //aki +
+                    if(Nref0_2 > Nrpm_ref0_2)
+                    {
+                        Nref0_2 = Nrpm_ref0_2;
+                    }
+                    else {}
+                }
+                else {}
+                if(Nref0_2<N_LOW_MAX)
+                {
+                    Nref0_2 = N_LOW_MAX;
+                }
+                else {}
+                Nrpm_ref_2 = Nref0_2;
+
+                Nerr_2 = Nrpm_ref_2 - Nrpm_s_2;
+            }
+            else {}
+            if(Nrpm_ref0_2<0) {
+                //Nrpm_ref0_2 = Nref1*(vr1_ad_2+0.05);
+                if(Nref0_2 < Nrpm_ref0_2)//minus
+                {
+                    Nref0_2 +=dN_HI_N; //aki +
+                    if(Nref0_2 > Nrpm_ref0_2)
+                    {
+                        Nref0_2 = Nrpm_ref0_2;
+                    }
+                    else {}
+                }
+                else {}
+
+                if(Nref0_2 > Nrpm_ref0_2)//minus
+                {
+                    Nref0_2 -= dN_HI_P;  //aki +
+                    if(Nref0_2 < Nrpm_ref0_2)
+                    {
+                        Nref0_2 = Nrpm_ref0_2;
+                    }
+                    else {}
+                }
+                else {}
+                if(Nref0_2>-N_LOW_MAX)
+                {
+                    Nref0_2 =-N_LOW_MAX;//aki
+                }
+                else {}
+                Nrpm_ref_2 = Nref0_2;
+                Nerr_2 =- Nrpm_ref_2 + Nrpm_s_2;//センサ付 aki -
+            }
+            else {}
+            break;
+        default:
+            break;
+        }
+        /* ----------- */
+        /* ASRのPI制御 */
+        /* ----------- */
+        s_kiASR_2 += kiASR_2*Nerr_2;
+        if(s_kiASR_2 > I1_LIM)
+        {
+            s_kiASR_2 = I1_LIM;
         }
         else
         {
-            if((DEG090N < THdc_2 )&&( THdc_2 < DEG150N )) {
-                THdc_2 = DEG150N;
-            }
-            else {}
+            if(s_kiASR_2 < (-I1_LIM))
+            {
+                s_kiASR_2 = -I1_LIM;
+            } else {}
         }
-        break;
-    default:
-        break;
-    }
-    /* ↑ここまで（速度・位相計算） */
-    switch(DRV_sts_2)
-    {
-    case 0:
-        s_LPF_N_2 = 0.0;
-        s_LPF_N2_2 = 0.0;
-        break;
-    case 1:
-        s_LPF_N_2 = 0.0;
-        s_LPF_N2_2 = 0.0;
-        break;
-    case 2:
-        break;
-    case 3:
-        break;
-    default:
-        s_LPF_N_2 = 0.0;
-        s_LPF_N2_2 = 0.0;
-        break;
-    }
-    if (DRV_sts_2 == 0)
-    {
-        Nrpm_2 = 0.0;
-        Nrpm_1_2 = 0.0;
-    }
-    else {}
-    /* *********************************************** */
-    /* [ 2 ] 速度制御 ↓ */
-    /* *********************************************** */
-    /* 回転数指令，誤差信号の処理 */
-    switch(DRV_sts_2)
-    {
-    case 0:
-        Nrpm_ref_2 = 0.0;
-        Nerr_2 = 0.0;
-        break;
-    case 3:
-        Nrpm_ref0_2 = Nref1*vr1_ad_2; //aki vr1_ad_2 0602
-
-        if(Nrpm_ref0_2>0) {
-            // Nrpm_ref0_2 = Nref1*(vr1_ad_2-0.05);
-            if(Nref0_2 > Nrpm_ref0_2)
+        I_ref_ASR_2 = s_kiASR_2 + kpASR_2*Nerr_2;
+        if(I_ref_ASR_2 > I1_LIM)
+        {
+            I_ref_ASR_2 = I1_LIM;
+        }
+        else
+        {
+            if(I_ref_ASR_2 < (-I1_LIM))
             {
-                Nref0_2 -= dN_HI_N; //aki -
-                if(Nref0_2 < Nrpm_ref0_2)
-                {
-                    Nref0_2 = Nrpm_ref0_2;
-                }
-                else {}
-            }
-            else {}
-
-            if(Nref0_2 < Nrpm_ref0_2)
-            {
-                Nref0_2 += dN_HI_P;  //aki +
-                if(Nref0_2 > Nrpm_ref0_2)
-                {
-                    Nref0_2 = Nrpm_ref0_2;
-                }
-                else {}
-            }
-            else {}
-            if(Nref0_2<N_LOW_MAX)
-            {
-                Nref0_2 = N_LOW_MAX;
-            }
-            else {}
-            Nrpm_ref_2 = Nref0_2;
-
-            Nerr_2 = Nrpm_ref_2 - Nrpm_s_2;
+                I_ref_ASR_2 = -I1_LIM;
+            } else {}
+        }
+        /* ASRの初期値 */
+        if(DRV_sts_2 != 3)
+        {
+            s_kiASR_2 = I_ref_q_ini_2;
+            I_ref_ASR_2 = I_ref_q_ini_2;
         }
         else {}
-        if(Nrpm_ref0_2<0) {
-            //Nrpm_ref0_2 = Nref1*(vr1_ad_2+0.05);
-            if(Nref0_2 < Nrpm_ref0_2)//minus
-            {
-                Nref0_2 +=dN_HI_N; //aki +
-                if(Nref0_2 > Nrpm_ref0_2)
-                {
-                    Nref0_2 = Nrpm_ref0_2;
-                }
-                else {}
-            }
-            else {}
-
-            if(Nref0_2 > Nrpm_ref0_2)//minus
-            {
-                Nref0_2 -= dN_HI_P;  //aki +
-                if(Nref0_2 < Nrpm_ref0_2)
-                {
-                    Nref0_2 = Nrpm_ref0_2;
-                }
-                else {}
-            }
-            else {}
-            if(Nref0_2>-N_LOW_MAX)
-            {
-                Nref0_2 =-N_LOW_MAX;//aki
-            }
-            else {}
-            Nrpm_ref_2 = Nref0_2;
-            Nerr_2 =- Nrpm_ref_2 + Nrpm_s_2;//センサ付 aki -
+        /* *********************************************** */
+        /* [ 3 ] 電流制御 ↓ */
+        /* *********************************************** */
+        /* 電流指令 */
+        switch(DRV_sts_2)
+        {
+        case 0: /* 待機状態 */
+            I_ref_q_2 = 0; 			/* q軸電流指令 */
+            I_err_q_2 = 0;			/* q軸電流偏差 */
+            s_kiACR_q_2 = 0.0;		/* q軸ACRの積分器クリア */
+            s_kiASR_2 = 0.0;		/* ASRの積分器クリア */
+            break;
+        case 3: /* 駆動開始 */
+            I_ref_d_2 = 0.0;		/* d軸電流指令 */
+            I_err_d_2 = I_ref_d_2 - Idc0_2;	/* d軸電流偏差 */
+            I_ref_q_2 = I_ref_ASR_2;	/* q軸電流指令 */
+            I_err_q_2 = I_ref_q_2 - Iqc0_2;	/* q軸電流偏差 */
+            break;
+        default:
+            I_ref_q_2 = 0;
+            I_err_q_2 = 0;
+            s_kiACR_q_2 = 0.0;
+            s_kiASR_2 = 0.0;
+            break;
         }
-        else {}
-        break;
-    default:
-        break;
-    }
-    /* ----------- */
-    /* ASRのPI制御 */
-    /* ----------- */
-    s_kiASR_2 += kiASR_2*Nerr_2;
-    if(s_kiASR_2 > I1_LIM)
-    {
-        s_kiASR_2 = I1_LIM;
-    }
-    else
-    {
-        if(s_kiASR_2 < (-I1_LIM))
+        /* ----------- */
+        /* ACRのPI制御 */
+        /* ----------- */
+        /* d軸ACR */
+        s_kiACR_d_2 += kiACR_2*I_err_d_2; /* d軸積分処理 */
+        if(s_kiACR_d_2 > V1_LIM)
         {
-            s_kiASR_2 = -I1_LIM;
-        } else {}
-    }
-    I_ref_ASR_2 = s_kiASR_2 + kpASR_2*Nerr_2;
-    if(I_ref_ASR_2 > I1_LIM)
-    {
-        I_ref_ASR_2 = I1_LIM;
-    }
-    else
-    {
-        if(I_ref_ASR_2 < (-I1_LIM))
+            s_kiACR_d_2 = V1_LIM;
+        }
+        else
         {
-            I_ref_ASR_2 = -I1_LIM;
-        } else {}
-    }
-    /* ASRの初期値 */
-    if(DRV_sts_2 != 3)
-    {
-        s_kiASR_2 = I_ref_q_ini_2;
-        I_ref_ASR_2 = I_ref_q_ini_2;
-    }
-    else {}
-    /* *********************************************** */
-    /* [ 3 ] 電流制御 ↓ */
-    /* *********************************************** */
-    /* 電流指令 */
-    switch(DRV_sts_2)
-    {
-    case 0: /* 待機状態 */
-        I_ref_q_2 = 0; 			/* q軸電流指令 */
-        I_err_q_2 = 0;			/* q軸電流偏差 */
-        s_kiACR_q_2 = 0.0;		/* q軸ACRの積分器クリア */
-        s_kiASR_2 = 0.0;		/* ASRの積分器クリア */
-        break;
-    case 3: /* 駆動開始 */
-        I_ref_d_2 = 0.0;		/* d軸電流指令 */
-        I_err_d_2 = I_ref_d_2 - Idc0_2;	/* d軸電流偏差 */
-        I_ref_q_2 = I_ref_ASR_2;	/* q軸電流指令 */
-        I_err_q_2 = I_ref_q_2 - Iqc0_2;	/* q軸電流偏差 */
-        break;
-    default:
-        I_ref_q_2 = 0;
-        I_err_q_2 = 0;
-        s_kiACR_q_2 = 0.0;
-        s_kiASR_2 = 0.0;
-        break;
-    }
-    /* ----------- */
-    /* ACRのPI制御 */
-    /* ----------- */
-    /* d軸ACR */
-    s_kiACR_d_2 += kiACR_2*I_err_d_2; /* d軸積分処理 */
-    if(s_kiACR_d_2 > V1_LIM)
-    {
-        s_kiACR_d_2 = V1_LIM;
-    }
-    else
-    {
-        if(s_kiACR_d_2 < (-V1_LIM))
-        {
-            s_kiACR_d_2 = -V1_LIM;
-        } else {}
-    }
-    Vdc0_2 = s_kiACR_d_2 + kpACR_2*I_err_d_2; /* d軸電圧指令Vd */
+            if(s_kiACR_d_2 < (-V1_LIM))
+            {
+                s_kiACR_d_2 = -V1_LIM;
+            } else {}
+        }
+        Vdc0_2 = s_kiACR_d_2 + kpACR_2*I_err_d_2; /* d軸電圧指令Vd */
 
-    if(Vdc0_2 > V1_LIM)
-    {
-        Vdc0_2 = V1_LIM;
-    }
-    else
-    {
-        if(Vdc0_2 < (-V1_LIM))
+        if(Vdc0_2 > V1_LIM)
         {
-            Vdc0_2 = -V1_LIM;
-        } else {}
-    }
-    /* q軸ACR */
-    s_kiACR_q_2 += kiACR_2*I_err_q_2;  /* q軸積分処理 */
-    if(s_kiACR_q_2 > V1_LIM)
-    {
-        s_kiACR_q_2 = V1_LIM;
-    }
-    else
-    {
-        if(s_kiACR_q_2 < (-V1_LIM))
+            Vdc0_2 = V1_LIM;
+        }
+        else
         {
-            s_kiACR_q_2 = -V1_LIM;
-        } else {}
-    }
-    Vqc0_2 = s_kiACR_q_2 + kpACR_2*I_err_q_2; /* q軸電圧指令Vq */
+            if(Vdc0_2 < (-V1_LIM))
+            {
+                Vdc0_2 = -V1_LIM;
+            } else {}
+        }
+        /* q軸ACR */
+        s_kiACR_q_2 += kiACR_2*I_err_q_2;  /* q軸積分処理 */
+        if(s_kiACR_q_2 > V1_LIM)
+        {
+            s_kiACR_q_2 = V1_LIM;
+        }
+        else
+        {
+            if(s_kiACR_q_2 < (-V1_LIM))
+            {
+                s_kiACR_q_2 = -V1_LIM;
+            } else {}
+        }
+        Vqc0_2 = s_kiACR_q_2 + kpACR_2*I_err_q_2; /* q軸電圧指令Vq */
 
-    if(Vqc0_2 > V1_LIM)
-    {
-        Vqc0_2 = V1_LIM;
-    }
-    else
-    {
-        if(Vqc0_2 < (-V1_LIM))
+        if(Vqc0_2 > V1_LIM)
         {
-            Vqc0_2 = -V1_LIM;
-        } else {}
-    }
-    /* 電流フィルタ */
-    s_LPF_i_2 += (Iqc0_2 - s_LPF_i_2 )*k_LPF_i_2;
-    /* *********************************************** */
-    /* [ 4 ] PWMの設定 */
-    /* *********************************************** */
-    /* mのリミッタ */
-    if      (m_2 >  m1_LIM) {
-        m_2 =  m1_LIM;
-    }
-    else if (m_2 < (-m1_LIM)) {
-        m_2 = -m1_LIM;
-    }
-    else               { /* no code */ }
-    if (DRV_sts_2 == 0) {
-        m_2 = 0.0;
-    }
-    else       { /* no code */ }
-    /* --------- */
-    /* LEDの設定 */
-    /* --------- */
-    /* ホールIC信号 */
+            Vqc0_2 = V1_LIM;
+        }
+        else
+        {
+            if(Vqc0_2 < (-V1_LIM))
+            {
+                Vqc0_2 = -V1_LIM;
+            } else {}
+        }
+        /* 電流フィルタ */
+        s_LPF_i_2 += (Iqc0_2 - s_LPF_i_2 )*k_LPF_i_2;
+        /* *********************************************** */
+        /* [ 4 ] PWMの設定 */
+        /* *********************************************** */
+        /* mのリミッタ */
+        if      (m_2 >  m1_LIM) {
+            m_2 =  m1_LIM;
+        }
+        else if (m_2 < (-m1_LIM)) {
+            m_2 = -m1_LIM;
+        }
+        else               { /* no code */ }
+        if (DRV_sts_2 == 0) {
+            m_2 = 0.0;
+        }
+        else       { /* no code */ }
+        /* --------- */
+        /* LEDの設定 */
+        /* --------- */
+        /* ホールIC信号 */
 //    LED2_set(U_in_m2());	//	// @*****
 //    LED3_set(V_in_m2());	//	// @*****
 //    LED4_set(W_in_m2());	//	// @*****
-    /* 過去モードの保存 */
-    VMODE_z2_2 = VMODE_z1_2;/* 前回値保存 */
-    //VMODE_z1_2 = VMODE_2;/* 前回値保存 */
-    /* ------------ */
-    /* モードの更新 */
-    /* ------------ */
-    UVW_2 = UVW_in_m2(); /* センサ付・ホールIC信号 */
-    switch(DRV_sts_2)
-    {
-    case 0:
-        VMODE_2 = 1;
-        break;
-    case 1:
-        VMODE_2 = 1;
-        break;
-    case 2:
-
-    case 3: /* ホールIC信号→VMODEのデコード　*/
-        switch (UVW_2)
+        /* 過去モードの保存 */
+        VMODE_z2_2 = VMODE_z1_2;/* 前回値保存 */
+        //VMODE_z1_2 = VMODE_2;/* 前回値保存 */
+        /* ------------ */
+        /* モードの更新 */
+        /* ------------ */
+        UVW_2 = UVW_in_m2(); /* センサ付・ホールIC信号 */
+        switch(DRV_sts_2)
         {
+        case 0:
+            VMODE_2 = 1;
+            break;
         case 1:
-            VMODE_z1_2 = 2;
+            VMODE_2 = 1;
             break;
         case 2:
-            VMODE_z1_2 = 4;
-            break;
-        case 3:
-            VMODE_z1_2 = 3;
-            break;
-        case 4:
-            VMODE_z1_2 = 6;
-            break;
-        case 5:
-            VMODE_z1_2 = 1;
-            break;
-        case 6:
-            VMODE_z1_2 = 5;
+
+        case 3: /* ホールIC信号→VMODEのデコード　*/
+            switch (UVW_2)
+            {
+            case 1:
+                VMODE_z1_2 = 2;
+                break;
+            case 2:
+                VMODE_z1_2 = 4;
+                break;
+            case 3:
+                VMODE_z1_2 = 3;
+                break;
+            case 4:
+                VMODE_z1_2 = 6;
+                break;
+            case 5:
+                VMODE_z1_2 = 1;
+                break;
+            case 6:
+                VMODE_z1_2 = 5;
+                break;
+            default:
+                VMODE_z1_2 = 1;
+                break;
+            }
             break;
         default:
-            VMODE_z1_2 = 1;
             break;
         }
-        break;
-    default:
-        break;
-    }
-    /* ---------------------- */
-    /* 回転方向 */
-    /* R_DR -> 1:正転，0:逆転 */
-    /* ---------------------- */
-    if(VMODE_z2_2 == VMODE_z1_2) {}
-    else
-    {
-        if(VMODE_z2_2 < VMODE_z1_2)
+        /* ---------------------- */
+        /* 回転方向 */
+        /* R_DR -> 1:正転，0:逆転 */
+        /* ---------------------- */
+        if(VMODE_z2_2 == VMODE_z1_2) {}
+        else
         {
-            if((VMODE_z2_2==1)&&(VMODE_z1_2==6)) {
-                R_DR_2=0;   // R_DR_2=0 1
+            if(VMODE_z2_2 < VMODE_z1_2)
+            {
+                if((VMODE_z2_2==1)&&(VMODE_z1_2==6)) {
+                    R_DR_2=0;   // R_DR_2=0 1
+                }
+                else {
+                    R_DR_2=1;
+                }
             }
-            else {
-                R_DR_2=1;
+            else
+            {
+                if((VMODE_z2_2==6)&&(VMODE_z1_2==1)) {
+                    R_DR_2=1;   //R_DR_2=1 0
+                }
+                else {
+                    R_DR_2=0;
+                }
             }
+        }
+        /* **************** */
+        /*     位相更新     */
+        /* **************** */
+        We1_2 = TWOPI*Fe1_2;  /* ω1 = 2π・f1 */
+        dTHdc_2 = Ts0*We1_2;  /* θs = ω1・Ts aki +*/
+
+        if((PLL_ON_2 == 1)&&(S6_MODE_2 != 1))
+        {
+            THdcV_2 = THdcPLL_2 + dTHdc_2*0.5/* 今回設定するdq逆変換位相 aki +*/;
         }
         else
         {
-            if((VMODE_z2_2==6)&&(VMODE_z1_2==1)) {
-                R_DR_2=1;   //R_DR_2=1 0
-            }
-            else {
-                R_DR_2=0;
-            }
+            THdcV_2 = THdc_2 + dTHdc_2*0.5/* 今回設定するdq逆変換位相 aki+ + */;
         }
-    }
-    /* **************** */
-    /*     位相更新     */
-    /* **************** */
-    We1_2 = TWOPI*Fe1_2;  /* ω1 = 2π・f1 */
-    dTHdc_2 = Ts0*We1_2;  /* θs = ω1・Ts aki +*/
-
-    if((PLL_ON_2 == 1)&&(S6_MODE_2 != 1))
-    {
-        THdcV_2 = THdcPLL_2 + dTHdc_2*0.5/* 今回設定するdq逆変換位相 aki +*/;
-    }
-    else
-    {
-        THdcV_2 = THdc_2 + dTHdc_2*0.5/* 今回設定するdq逆変換位相 aki+ + */;
-    }
-    while(THdcV_2 > TWOPI)  /* 「0 < θdc < 2π」に制限 */
-    {
-        THdcV_2 -= TWOPI;
-    }
-    while(THdcV_2 < 0.0)
-    {
-        THdcV_2 += TWOPI;
-    }
-    /* ************ */
-    /* dq逆座標変換 */
-    /* ************ */
-    s_LPF_vd0_2 += (Vdc0_2 - s_LPF_vd0_2)*k_LPF_vd0_2;
-    s_LPF_vq0_2 += (Vqc0_2 - s_LPF_vq0_2)*k_LPF_vq0_2;
-    SIN0_2 = sin(THdcV_2);//aki
-    COS0_2 = cos(THdcV_2);
-    /* dq -> αβ */
-    Vac0_2 = Vdc0_2*COS0_2 -Vqc0_2*SIN0_2; //-
-    Vbc0_2 = Vdc0_2*SIN0_2 + Vqc0_2*COS0_2; //+
-    /* αβ -> Vuvw */
-    Vac0_t_2 = 0.40824892046*Vac0_2;
-    Vbc0_t_2 = 0.70710678118*Vbc0_2;
-    Vuc0_2 = 2.0*Vac0_t_2;
-    Vvc0_2 = -Vac0_t_2 + Vbc0_t_2;
-    Vwc0_2 = -Vac0_t_2 - Vbc0_t_2;
-    switch(PWM_mode_2)
-    {
-    case 0: /* SIN PWM（なにもなし） */
-        Vuc1_2 = Vuc0_2;
-        Vvc1_2 = Vvc0_2;
-        Vwc1_2 = Vwc0_2;
-        break;
-    case 1:
-        HIP_m2(); /* HIP変調 */
-        break;
-    default:
-        HIP_m2(); /**/
-        break;
-    }
-    /* PWM Vuvw -> Muvw */
-    refu_2 = Vuc1_2*Power2;
-    refv_2 = Vvc1_2*Power2;
-    refw_2 = Vwc1_2*Power2;
-    /*  if((vr2_ad_2>jth)){//||(Rcnt_2>jthr)){  //0604
-      refu_2 = Vuc1_2*Power2; //vr1_ad_2
-      refv_2 = Vvc1_2*Power2;
-      refw_2 = Vwc1_2*Power2;
-      }
-      else{}
-      if((vr2_ad_2<=-jth)){//||(Rcnt_2<-jthr)){ //0604
-      refu_2 = Vuc1_2*Power2;//-vr1_ad_2
-      refv_2 = Vvc1_2*Power2;
-      refw_2 = Vwc1_2*Power2;
-      }
-      else{}*/
-    /*if((fabs(s_LPF_N2)>kaitensu)&&(Rot_2==0)&&(jNorm_2==0)){
-     for(count=1;count<=100; count=count+1){
-     refu_2 = 0.65;
-     refv_2 = 0.65;
-     refw_2 = 0.65;
-     }
-     }
-     else{}*/
-    /* --------- */
-    /* PWMの設定 */
-    /* --------- */
-    inverter_set_uvw_2( refu_2, refv_2, refw_2, YT_cnt_2,1);  //( refu_2, refv_2, refw_2, YT_cnt_2,MN )
-#ifndef	TEST_M1
-    /* ----------- */
-    /* ICS support */
-    /* ----------- */
-    if(YT_cnt_2 == 0)
-    {
-        cnt_2++;
-        if (cnt_2>=3)
+        while(THdcV_2 > TWOPI)  /* 「0 < θdc < 2π」に制限 */
         {
-            ics_watchpoint();
-            cnt_2 = 0;
+            THdcV_2 -= TWOPI;
+        }
+        while(THdcV_2 < 0.0)
+        {
+            THdcV_2 += TWOPI;
+        }
+        /* ************ */
+        /* dq逆座標変換 */
+        /* ************ */
+        s_LPF_vd0_2 += (Vdc0_2 - s_LPF_vd0_2)*k_LPF_vd0_2;
+        s_LPF_vq0_2 += (Vqc0_2 - s_LPF_vq0_2)*k_LPF_vq0_2;
+        SIN0_2 = sin(THdcV_2);//aki
+        COS0_2 = cos(THdcV_2);
+        /* dq -> αβ */
+        Vac0_2 = Vdc0_2*COS0_2 -Vqc0_2*SIN0_2; //-
+        Vbc0_2 = Vdc0_2*SIN0_2 + Vqc0_2*COS0_2; //+
+        /* αβ -> Vuvw */
+        Vac0_t_2 = 0.40824892046*Vac0_2;
+        Vbc0_t_2 = 0.70710678118*Vbc0_2;
+        Vuc0_2 = 2.0*Vac0_t_2;
+        Vvc0_2 = -Vac0_t_2 + Vbc0_t_2;
+        Vwc0_2 = -Vac0_t_2 - Vbc0_t_2;
+        switch(PWM_mode_2)
+        {
+        case 0: /* SIN PWM（なにもなし） */
+            Vuc1_2 = Vuc0_2;
+            Vvc1_2 = Vvc0_2;
+            Vwc1_2 = Vwc0_2;
+            break;
+        case 1:
+            HIP_m2(); /* HIP変調 */
+            break;
+        default:
+            HIP_m2(); /**/
+            break;
+        }
+        /* PWM Vuvw -> Muvw */
+        refu_2 = Vuc1_2*Power2;
+        refv_2 = Vvc1_2*Power2;
+        refw_2 = Vwc1_2*Power2;
+        /*  if((vr2_ad_2>jth)){//||(Rcnt_2>jthr)){  //0604
+          refu_2 = Vuc1_2*Power2; //vr1_ad_2
+          refv_2 = Vvc1_2*Power2;
+          refw_2 = Vwc1_2*Power2;
+          }
+          else{}
+          if((vr2_ad_2<=-jth)){//||(Rcnt_2<-jthr)){ //0604
+          refu_2 = Vuc1_2*Power2;//-vr1_ad_2
+          refv_2 = Vvc1_2*Power2;
+          refw_2 = Vwc1_2*Power2;
+          }
+          else{}*/
+        /*if((fabs(s_LPF_N2)>kaitensu)&&(Rot_2==0)&&(jNorm_2==0)){
+         for(count=1;count<=100; count=count+1){
+         refu_2 = 0.65;
+         refv_2 = 0.65;
+         refw_2 = 0.65;
+         }
+         }
+         else{}*/
+        /* --------- */
+        /* PWMの設定 */
+        /* --------- */
+        inverter_set_uvw_2( refu_2, refv_2, refw_2, YT_cnt_2,1);  //( refu_2, refv_2, refw_2, YT_cnt_2,MN )
+#ifndef	TEST_M1
+        /* ----------- */
+        /* ICS support */
+        /* ----------- */
+        if(YT_cnt_2 == 0)
+        {
+            cnt_2++;
+            if (cnt_2>=3)
+            {
+                ics_watchpoint();
+                cnt_2 = 0;
+            }
+            else {}
         }
         else {}
-    }
-    else {}
 #endif
 
 //    LED1_set(0);		// @*****
-}
+    }
 
 //*****************************************************************************
 //@****************************************************************************
 
-void	Mtu4IntFunc_V(void)	// M-1 MPU4 山谷割込み
-{
-    //MTU4.TSR.BIT.TGFA=0;
-    if((MTU3.TSR.BIT.TCFV==0)&&(MTU4.TSR.BIT.TCFV==1)) { //谷
-        //  if((MTU4.TSR.BIT.TCFV==1)){//谷
-        YT_cnt = MTU4.TSR.BIT.TCFV; //0
-        MTU4.TSR.BIT.TCFV=0;
-        PORTB.DR.BIT.B5=1;
-    }
-    else {
-        YT_cnt = 0;   //山//1
-    }
-    if(MTU3.TSR.BIT.TCFV==1) {
-        ov3=MTU3.TSR.BIT.TCFV;
+    void	Mtu4IntFunc_V(void)	// M-1 MPU4 山谷割込み
+    {
+        //MTU4.TSR.BIT.TGFA=0;
+        if((MTU3.TSR.BIT.TCFV==0)&&(MTU4.TSR.BIT.TCFV==1)) { //谷
+            //  if((MTU4.TSR.BIT.TCFV==1)){//谷
+            YT_cnt = MTU4.TSR.BIT.TCFV; //0
+            MTU4.TSR.BIT.TCFV=0;
+            PORTB.DR.BIT.B5=1;
+        }
+        else {
+            YT_cnt = 0;   //山//1
+        }
+        if(MTU3.TSR.BIT.TCFV==1) {
+            ov3=MTU3.TSR.BIT.TCFV;
+            MTU3.TSR.BIT.TCFV=0;
+        }
+        YT_cnt_2 =0;
         MTU3.TSR.BIT.TCFV=0;
-    }
-    YT_cnt_2 =0;
-    MTU3.TSR.BIT.TCFV=0;
-    MTU4.TSR.BIT.TCFV=0;
-    MN = 0;
-    MTU4.TIER.BIT.TCIEV = 0;
-    int_carrier_m1();
-    PORTB.DR.BIT.B5=0;
-    MTU7.TIER.BIT.TCIEV = 1;
-    //MTU4.TIER.BIT.TCIEV = 0;
-   countc1++;
+        MTU4.TSR.BIT.TCFV=0;
+        MN = 0;
+        MTU4.TIER.BIT.TCIEV = 0;
+        int_carrier_m1();
+        PORTB.DR.BIT.B5=0;
+        MTU7.TIER.BIT.TCIEV = 1;
+        //MTU4.TIER.BIT.TCIEV = 0;
+        countc1++;
 
 
-}
-
-
-void	Mtu7IntFunc_V(void)	// M-2 MPU7 山谷割込み
-{
-    //MTU7.TSR.BIT.TGFA=0;
-    if((MTU6.TSR.BIT.TCFV==0)&&(MTU7.TSR.BIT.TCFV==1)) { //谷
-        //if((MTU7.TSR.BIT.TCFV==1)){//谷
-        YT_cnt_2 =MTU7.TSR.BIT.TCFV ; //0
-        MTU7.TSR.BIT.TCFV=0;
-        PORTB.DR.BIT.B7=1;
-    }
-    else {
-        YT_cnt_2 = 0;   //1
     }
 
-    if(MTU6.TSR.BIT.TCFV==1) {
-        ov6=MTU6.TSR.BIT.TCFV;
+
+    void	Mtu7IntFunc_V(void)	// M-2 MPU7 山谷割込み
+    {
+        //MTU7.TSR.BIT.TGFA=0;
+        if((MTU6.TSR.BIT.TCFV==0)&&(MTU7.TSR.BIT.TCFV==1)) { //谷
+            //if((MTU7.TSR.BIT.TCFV==1)){//谷
+            YT_cnt_2 =MTU7.TSR.BIT.TCFV ; //0
+            MTU7.TSR.BIT.TCFV=0;
+            PORTB.DR.BIT.B7=1;
+        }
+        else {
+            YT_cnt_2 = 0;   //1
+        }
+
+        if(MTU6.TSR.BIT.TCFV==1) {
+            ov6=MTU6.TSR.BIT.TCFV;
+            MTU6.TSR.BIT.TCFV=0;
+        }
+        YT_cnt=0;
         MTU6.TSR.BIT.TCFV=0;
-    }
-    YT_cnt=0;
-    MTU6.TSR.BIT.TCFV=0;
-    MTU7.TSR.BIT.TCFV=0;
-    MN = 1;
-    MTU7.TIER.BIT.TCIEV = 0;
-    //PORTB.DR.BIT.B5=1;
-    int_carrier_m2();
-    PORTB.DR.BIT.B7=0;
-    //MTU7.TIER.BIT.TCIEV = 0;
-    MTU4.TIER.BIT.TCIEV = 1;
-    countc1++;
+        MTU7.TSR.BIT.TCFV=0;
+        MN = 1;
+        MTU7.TIER.BIT.TCIEV = 0;
+        //PORTB.DR.BIT.B5=1;
+        int_carrier_m2();
+        PORTB.DR.BIT.B7=0;
+        //MTU7.TIER.BIT.TCIEV = 0;
+        MTU4.TIER.BIT.TCIEV = 1;
+        countc1++;
 
-}
+    }

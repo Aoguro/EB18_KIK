@@ -66,7 +66,7 @@ unsigned short cngs=1;
 
 float   fy=0,fx=0,fya=0,fxa=0,fyi=1600,fxi=2200;
 float   fy_2=0,fx_2=0,fya_2=0,fxa_2=0,fyi_2=1600,fxi_2=2000;
-float vr2_adi,Rotatei,vr2_adi_2,Rotatei_2,LPF_ad_1=0.0001,LPF_ad_2=0.0001;
+float vr2_adi,Rotatei,vr2_adi_2,Rotatei_2,LPF_ad_1=0.001,LPF_ad_2=0.001;
 volatile int iu,iv,iw;
 /******Current CTL at mode*****/
 /*float Start=5.5;//0.7
@@ -931,7 +931,7 @@ void work_init_m1(void)
 {
     //power=1.0;
     I_ref_q_ini=0;
-   // DRV_sts = 0;
+    DRV_sts = 0;
     s_LPF_N = 0.0;
     s_LPF_N2 = 0.0;
     s_kiASR = I_ref_q_ini;
@@ -1192,6 +1192,7 @@ void  int_carrier_m1(void)
     B0=PORTD.PORT.BIT.B2;//B0
     B1=PORTD.PORT.BIT.B3;//B1
     jiro=PORTD.PORT.BIT.B5;//jiro
+#if 0
 //if((Rot==0)){
     if(vr2_ad<-jth) {
         if(((F0==0)&&(F1==0))) {
@@ -1270,7 +1271,7 @@ void  int_carrier_m1(void)
     }
 //}
 //else{}
-
+#endif
     /******************jiro*******************/
 
     /*   if((jiro==1)&&(cngs==0)){
@@ -1410,10 +1411,36 @@ void  int_carrier_m1(void)
 
     //  Rot=0;
     //  vr1_ad=vr2_ad*(0.5 + Rotate);
-    if(fabs(vr2_ad)>jth){
-    vr1_ad=vr2_ad;
+    if(fabs(vr2_ad) > jth) {
+        if(vr2_ad > 0) {
+            R_DR = 0;      // CW
+            vr1_ad = vr2_ad - jth;
+            if(vr1_ad < 0) {
+                vr1_ad = 0;
+            }
+        }
+        else {
+            R_DR = 1;
+            vr1_ad = vr2_ad + jth;
+            if(vr1_ad > 0) {
+                vr1_ad = 0;
+            }
+        }
     }
-    else{}
+    else {
+        vr1_ad = 0;
+    }
+
+    /*  if(vr2_ad>jth){
+      vr1_ad=vr2_ad-jth;
+      }
+      else{ vr1_ad=0;}
+
+      if(vr2_ad<-jth){
+      vr1_ad=vr2_ad+jth;
+      }
+      else{ vr1_ad=0;}*/
+
     //vr1_ad=(vr2_ad-Rotate)*Lp;//vr2_ad + Rotate;
     //      }
     //   else{}
@@ -2096,13 +2123,15 @@ void  int_carrier_m1(void)
     case 2:
         break;
     case 3:
-       // jth=0.03; //20181208
-        if(vr2_ad<0) {
+#if 0
+        // jth=0.03; //20181208
+        if(vr1_ad<0) {
             R_DR=1;
         }
         else {
             R_DR=0;
         }
+#endif
         break;
     default:
         s_LPF_N = 0.0;
@@ -2701,7 +2730,7 @@ void	int_carrier_m2(void)
             pth=0;
             //jth=0.05;
 
-          
+
 
             PORTE.DR.BIT.B5=0;
             work_init_m2();
