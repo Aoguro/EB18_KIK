@@ -1350,6 +1350,7 @@ void  int_carrier_m1(void)
 
             work_init_m1();
             PORTB.DR.BIT.B6=0;
+            PORTE.DR.BIT.B5=0;
             // Nref1=0;
 
 
@@ -1364,11 +1365,13 @@ void  int_carrier_m1(void)
         }
         else {
             PORTB.DR.BIT.B6=1;
+            PORTE.DR.BIT.B5=1;
             Nref1=cNref1;
         }
     }
     else {
         PORTB.DR.BIT.B6=1;   //Inverter En
+        PORTE.DR.BIT.B5=1;
         Nref1=cNref1;
     }
 
@@ -1554,6 +1557,7 @@ void  int_carrier_m1(void)
     
 #endif
     vr1_ad = vr2_ad;
+    vr1_ad_2=-vr1_ad;
     //////////////////////////////
     //  End of Run_Control      //
     //////////////////////////////
@@ -2847,7 +2851,7 @@ void	int_carrier_m2(void)
 #if 0
     vr2_adi_2=-((an103_2-fyi_2)/ydiv);
     Rotatei_2 =((an003_2-fxi_2)/xdiv);
-#else
+
     vr2_ad_2=vr2_ad;
     Rotate_2 =Rotate;
 #endif
@@ -2856,7 +2860,7 @@ void	int_carrier_m2(void)
 
     /************Initialize*******************/
 
-
+#if 0
     if((vr2_ad_2<(jth-0.0))&&(vr2_ad_2>-(jth-0.0))) { //vr1_ad 0604 0.02
         if((Rotate_2<(jthr-0.0))&&(Rotate_2>-(jthr-0.0))) {   // 追加　0609 0.02
 
@@ -2884,6 +2888,7 @@ void	int_carrier_m2(void)
         PORTE.DR.BIT.B5=1;   //Inverter EN
         Nref1=cNref1;
     }
+#endif
     /*******************************************************************/
 //    initm2=1;
     /* ボリュームの電圧 */
@@ -2910,7 +2915,7 @@ void	int_carrier_m2(void)
 
     /**********************************************************************/
 
-    vr1_ad_2=vr2_ad_2;
+   // vr1_ad_2=-vr1_ad;
     /*    if((vr2_ad_2<(jth+pth))&&(vr2_ad_2>-(jth+pth))){//&&(Rot_2==1)){
     	   if((Rotate_2>jthr)){//||(Rotate_2<-jthr)){
     		   jNorm_2=0;
@@ -3587,7 +3592,9 @@ void	int_carrier_m2(void)
         break;
     }
     /* ↑ここまで（速度・位相計算） */
-    switch(DRV_sts_2)
+    
+
+    switch(DRV_sts)
     {
     case 0:
         s_LPF_N_2 = 0.0;
@@ -3612,6 +3619,7 @@ void	int_carrier_m2(void)
         Nrpm_1_2 = 0.0;
     }
     else {}
+
     /* *********************************************** */
     /* [ 2 ] 速度制御 ↓ */
     /* *********************************************** */
@@ -3623,7 +3631,7 @@ void	int_carrier_m2(void)
         Nerr_2 = 0.0;
         break;
     case 3:
-        Nrpm_ref0_2 =fabs( Nref1*vr1_ad_2); //aki vr1_ad_2 0602
+        Nrpm_ref0_2 =fabs( Nref1*(-vr1_ad)); //aki vr1_ad_2 0602
 
         //if(Nrpm_ref0_2>0) {
             // Nrpm_ref0_2 = Nref1*(vr1_ad_2-0.05);
