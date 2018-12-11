@@ -707,7 +707,7 @@ unsigned char UVW_in_m2(void)
 
     temp8 = TbUVW[temp8];
 
-    if(R_DR==1) {
+    if(R_DR==0) {
         temp8 = ((temp8 + 2) % 6)+1 ;
        
     }
@@ -1557,7 +1557,7 @@ void  int_carrier_m1(void)
     
 #endif
     vr1_ad = vr2_ad;
-    vr1_ad_2=-vr1_ad;
+    //vr1_ad_2=-vr1_ad;
     //////////////////////////////
     //  End of Run_Control      //
     //////////////////////////////
@@ -3209,9 +3209,9 @@ void	int_carrier_m2(void)
 #endif
 
     /* 正転，逆転のチェック */
-    if(R_DR_2==1)/* 正転 */
+    if(R_DR_2==1)/* 正転 1*/
     {
-        Nrpm_s_2 = Nrpm_2;
+        Nrpm_s_2 = Nrpm_2;//
     }
     else/* 逆転 */
     {
@@ -3613,7 +3613,7 @@ void	int_carrier_m2(void)
         s_LPF_N2_2 = 0.0;
         break;
     }
-    if (DRV_sts_2 == 0)
+    if (DRV_sts== 0)
     {
         Nrpm_2 = 0.0;
         Nrpm_1_2 = 0.0;
@@ -3631,7 +3631,7 @@ void	int_carrier_m2(void)
         Nerr_2 = 0.0;
         break;
     case 3:
-        Nrpm_ref0_2 =fabs( Nref1*(-vr1_ad)); //aki vr1_ad_2 0602
+        Nrpm_ref0_2 =fabs( Nref1*(vr1_ad)); //aki vr1_ad_2 0602
 
         //if(Nrpm_ref0_2>0) {
             // Nrpm_ref0_2 = Nref1*(vr1_ad_2-0.05);
@@ -3743,7 +3743,7 @@ void	int_carrier_m2(void)
         } else {}
     }
     /* ASRの初期値 */
-    if(DRV_sts_2 != 3)
+    if(DRV_sts != 3)
     {
         s_kiASR_2 = I_ref_q_ini_2;
         I_ref_ASR_2 = I_ref_q_ini_2;
@@ -3753,7 +3753,7 @@ void	int_carrier_m2(void)
     /* [ 3 ] 電流制御 ↓ */
     /* *********************************************** */
     /* 電流指令 */
-    switch(DRV_sts_2)
+    switch(DRV_sts)
     {
     case 0: /* 待機状態 */
         I_ref_q_2 = 0; 			/* q軸電流指令 */
@@ -3842,7 +3842,7 @@ void	int_carrier_m2(void)
         m_2 = -m1_LIM;
     }
     else               { /* no code */ }
-    if (DRV_sts_2 == 0) {
+    if (DRV_sts == 0) {
         m_2 = 0.0;
     }
     else       { /* no code */ }
@@ -3860,7 +3860,7 @@ void	int_carrier_m2(void)
     /* モードの更新 */
     /* ------------ */
     UVW_2 = UVW_in_m2(); /* センサ付・ホールIC信号 */
-    switch(DRV_sts_2)
+    switch(DRV_sts)
     {
     case 0:
         VMODE_2 = 1;
