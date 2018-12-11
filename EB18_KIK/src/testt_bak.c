@@ -20,10 +20,6 @@
 #include "testt.h"
 #include "define.h"
 
-//Add typedefine.h for portability 
-#include "typedefine.h"
-
-
 // DTCのテーブルエリアを確保(0x1000からにSectionを確保している)
 #pragma section DTCTABLE
 unsigned long dtc_table[256]; // caution allignment 0x000
@@ -33,13 +29,9 @@ volatile unsigned long countc1=0, count1p=0, count1s=0;
 volatile unsigned short cflag1, cflag2;
 volatile unsigned long countc2=0, count2p=0, count2s;
 
-// HALL IC ENCODE TABLE
-static const _UBYTE TbUVW[8] = {1, 2, 4, 3, 6, 1, 5, 1};
-// RUN CONTROL FLAG
-volatile _UBYTE Run = 0;
-// Accelaration limit := 100 RPM/SECOND
-volatile _FLOAT dS_dt = (1000.0 / 20000);//100.0
-//float dS_dt = (100.0 / 20000);
+static const int TbUVW[8] = {1, 2, 4, 3, 6, 1, 5, 1};
+volatile unsigned short Run;
+
 //*****************************************************************************
 //*****************************************************************************
 // MOTOR-1 MOTOR-2共通
@@ -49,7 +41,7 @@ volatile _FLOAT dS_dt = (1000.0 / 20000);//100.0
 unsigned short MN;	// MOTOR NO. M-1=0 M-2=1
 // Nrpm 計算定数 cNrpm_P=60/8*cIMCLK_FRQ*1000000/cTr2=1125000; cPole=8;cTr2=64;cIMCLK_FRQ=96[MHz]
 //signed	int	cNrpm_P = 60 * cIMCLK_FRQ * 1000 / cTr2 / cPole * 1000;	// cNrpm_P = 1125000
-signed	int	cNrpm_P = 10 * cIMCLK_FRQ * 1000 / (cPole/2 ) ;	//2 // cNrpm_P = 1125000
+signed	int	cNrpm_P = 10 * cIMCLK_FRQ * 1000 / (cPole / 2) ;	// cNrpm_P = 1125000
 //signed	int	cNrpm_P = 1125000;
 // f 計算定数 cF_P=cPole/60/2; cPole=8;
 float	cF_P = cPole / 120.;  				// cF_P = cPole/60/2=0.066666666667;
@@ -77,7 +69,6 @@ float   fy=0,fx=0,fya=0,fxa=0,fyi=1600,fxi=2200;
 float   fy_2=0,fx_2=0,fya_2=0,fxa_2=0,fyi_2=1600,fxi_2=2000;
 float vr2_adi,Rotatei,vr2_adi_2,Rotatei_2,LPF_ad_1=0.001,LPF_ad_2=0.001;
 volatile int iu,iv,iw;
-float tmp_vr1;
 /******Current CTL at mode*****/
 /*float Start=5.5;//0.7
 float St6=6.5;  // 0.4
@@ -647,13 +638,13 @@ unsigned char UVW_in(void)
       temp8 = (temp8+temp8) + U_in();
     }*/
 #if 0
-    if(R_DR== 1) { //||(Rotate<-0.1)){//vr1_ad  0604-jth
+    if(vr2_ad<=0) { //||(Rotate<-0.1)){//vr1_ad  0604-jth
         temp8 = U_in();                //U
         temp8 = (temp8+temp8) + W_in();//W
         temp8 = (temp8+temp8) + V_in();//V
     }
     else {}
-    if(R_DR== 0 ) { //||(Rotate>0.1)){ //vr1_ad  0604 jth
+    if(vr2_ad>0) { //||(Rotate>0.1)){ //vr1_ad  0604 jth
         temp8 = W_in();                 //W
         temp8 = (temp8+temp8) + V_in(); //V
         temp8 = (temp8+temp8) + U_in(); //U
@@ -667,9 +658,7 @@ unsigned char UVW_in(void)
     temp8 = TbUVW[temp8];
 
     if(R_DR==1) {
-        temp8 = ((temp8 + 2) % 6)+1 ;
-      // temp8 = ((temp8 + 2) % 6) ;
-       
+        temp8 = ((temp8 + 2) % 6) + 1;
     }
     else {}
 #endif
@@ -1022,8 +1011,11 @@ void work_init_m2(void)
 
 void main(void)
 {
-    H_Init();
 
+
+
+
+    H_Init();
     //RSPI_Init();
     //ics_init((unsigned int)(&dtc_table), 6);
     //inverter_init(cPWMPRD, cDedTime);	// fs : 周期〈ns〉、dt：デッドタイム（ns）50000：521=4800：50
@@ -1034,6 +1026,7 @@ void main(void)
 
 
     // PORTE.DR.BIT.B5=1;
+    Run = 0;
     work_init_m1();			// work initialize MOTOR-1
     work_init_m2();			// work initialize MOTOR-2
 
@@ -1049,6 +1042,7 @@ void main(void)
      RSPI0.SPDR.WORD.H = 0x3A10; // データの送信
      while( 0 == RSPI0.SPSR.BIT.SPRF ); // 送信完了待ち
      RSPI0.SPDR.LONG;*/
+
 
     while (1)
     {
@@ -1067,8 +1061,8 @@ void Period_Motor1(void)
       }
       else {*/
     t_cnt = count1s - count1p;
-    if(t_cnt>1000) {
-        t_cnt=1000;
+    if(t_cnt>300) {
+        t_cnt=300;
 
     }
     //}
@@ -1087,9 +1081,6 @@ void Period_Motor1(void)
 //@****************************************************************************
 void  int_carrier_m1(void)
 {
-//register _FLOAT tmp_vr1;
-//float tmp_vr1;
-
     ICU.IR[0x5A].BIT.IR=0; //0601
     //TC_cnt_Ts = MTU0.TCNT;		// MTU0のカウンタ値	// @*****
     TC_cnt_Ts = countc1;
@@ -1107,9 +1098,13 @@ void  int_carrier_m1(void)
     /* DRV_sts 設定 */
     /* ------------ */
     SW = SW_in();/* SW1の入力 */
-    if (SW==1)/* Gate OFF DRV_sts=0 */
-    {
-        DRV_sts = 0;
+    // if (SW==1)/* Gate OFF DRV_sts=0 */
+
+    if(DRV_sts == 0) {
+        if(fabs(vr1_ad) > 0.001) {
+            DRV_sts = 3;
+        }
+        else {}
         s_LPF_N = 0.0;
         s_LPF_N2 = 0.0;
         s_kiASR = I_ref_q_ini;
@@ -1120,14 +1115,14 @@ void  int_carrier_m1(void)
         s_kiPLL = 0.0;
         s_kiACR_d = 0.0;
         s_kiACR_q = 0.0;
-
         Nrpm_ref = 0.0;
     }
-    else
-    {
-        DRV_sts = 3;
+    else {
+        if(fabs(vr1_ad) < 0.001) {
+            DRV_sts = 0;
+        }
+        else {}
     }
-
     /* -------------------- */
     /* 電流，電圧検出値処理 */
     /* -------------------- */
@@ -1339,8 +1334,8 @@ void  int_carrier_m1(void)
     /* ボリュームの電圧 */
 
     // if(fabs(s_LPF_N)>9) {
-    kpACR = 0.002;//0.00015
-    kiACR = 0.0000006;//0.0000005
+    kpACR = 0.0015;//0.00015
+    kiACR = 0.0000005;//0.0000005
     kpASR = 0.08;//0.0008 Speed
     kiASR = 0.002;// 0.00001;
     LPF_ad_1=0.025;//0.025
@@ -1419,106 +1414,38 @@ void  int_carrier_m1(void)
     // if(jNorm==1){   //hidari
     //  Rot=0;
     //  vr1_ad=vr2_ad*(0.5 + Rotate);
-    
-/////////////////////////////////////////////////////////////////////
-//  %%%%%                %%%%%                               %%    //
-//  %    %              %     %              %                %    //
-//  %    % %  % %%%%    %        %%%  %%%%  %%%  % %%   %%%   %    //
-//  %%%%%  %  % %   %   %       %   % %   %  %   %%  % %   %  %    //
-//  %  %   %  % %   %   %       %   % %   %  %   %     %   %  %    //
-//  %   %  %  % %   %   %     % %   % %   %  %   %     %   %  %    //
-//  %    %  %%  %   %    %%%%%   %%%  %   %   %% %      %%%    %%  //
-/////////////////////////////////////////////////////////////////////
-/*
-【注意】Run Control部はMotor1のみで実行する事
-        Joy stickに関連する部分も同様です。
-        
-    void Run_Control(void) {
-        // MOTORに関係しない共通部分
-    }
 
-    void MOTOR_DRIVE(_UBYTE motor_num) {
-        register _UBYTE idx;
-        idx = (motor_num == 1)? 0 : 1;
-        ...
-        mp[idx].Nrpm = ....  <-- MOTOR1
-        ...
-        ...
-    }
-   
-    void int_carrier_m1(void) {
-        Run_Control();
-        MOTOR_DRIVE(1);
-    }
-   
-    void int_carrier_m2(void) {
-        MOTOR_DRIVE(2);
-    }   
-*/
-
-    // Prepare tmp_vr1 as differentiater
-#if 1
-    tmp_vr1 = vr1_ad;
-    
     if(Run == 0) {
-        //////////////////////
-        // Run == 0 := Stop
-        //
-        jth=0.06;
-
+        jth = 0.06;
         if(fabs(vr2_ad) > jth) {
             Run = 1;
-
             if(vr2_ad > 0) {
-                R_DR = 1;       // CCW
-                tmp_vr1 = vr2_ad - jth;
-                //tmp_vr1 = (tmp_vr1 < 0.0)? 0.0 : tmp_vr1;
+                R_DR = 0;      // CW
+                vr1_ad = vr2_ad - jth;
+                if(vr1_ad < 0) {
+                    vr1_ad = 0;
+                }
             }
-            else if(vr2_ad < 0) {//vr1
-                R_DR = 0;       // CW
-                tmp_vr1 = vr2_ad + jth;
-                //tmp_vr1 = (tmp_vr1 > 0.0)? 0.0 : tmp_vr1;
+            else {
+                R_DR = 1;
+                vr1_ad = vr2_ad + jth;
+                if(vr1_ad > 0) {
+                    vr1_ad = 0;
+                }
             }
-            else {}
-
         }
-        else {}
+        else {
+            vr1_ad = 0;
+        }
     }
     else {
-        //////////////////////////
-        //  Run == 1 :: Running
-        //
         jth = 0.03;
-        
         if(fabs(vr2_ad) < jth) {
             Run = 0;
-            tmp_vr1 = 0.0;
+            vr1_ad = 0;
         }
     }
-    
-    ////////////////////////
-    // vr1_ad post process
-    //
-    if(vr1_ad > 0.0) { //vr1_ad
-        if((vr1_ad - tmp_vr1) > dS_dt) {
-            vr1_ad -= dS_dt;//
-        }
-    }
-    else if(vr1_ad < 0.0) { //vr1_ad
-        if((tmp_vr1 - vr1_ad) > dS_dt) {
-            vr1_ad += dS_dt;//
-        }
-    }
-    else {
-        vr1_ad = tmp_vr1;
-        // vr1_ad = vr2_ad;
-    }
-    
-#endif
-    vr1_ad = vr2_ad;
-    //////////////////////////////
-    //  End of Run_Control      //
-    //////////////////////////////
+
 
     /*  if(vr2_ad>jth){
       vr1_ad=vr2_ad-jth;
@@ -1923,25 +1850,25 @@ void  int_carrier_m1(void)
         switch (V_MODE)
         {
         case 1:
-            TH_hole = DEG210N;  /* θhole[rad] 210 */
+            TH_hole = DEG150N;  /* θhole[rad] 210 */
             break;
         case 2:
-            TH_hole = DEG270N;  /* θhole[rad] 270 */
+            TH_hole = DEG210N;  /* θhole[rad] 270 */
             break;
         case 3:
-            TH_hole = DEG330N;  /* θhole[rad] 330 */
+            TH_hole = DEG270N;  /* θhole[rad] 330 */
             break;
         case 4:
-            TH_hole = DEG030N;  /* θhole[rad] 30 */
+            TH_hole = DEG330N;  /* θhole[rad] 30 */
             break;
         case 5:
-            TH_hole = DEG090N;  /* θhole[rad] 90 */
+            TH_hole = DEG030N;  /* θhole[rad] 90 */
             break;
         case 6:
-            TH_hole = DEG150N;  /* θhole[rad] 150 */
+            TH_hole = DEG090N;  /* θhole[rad] 150 */
             break;
         default:
-            TH_hole = DEG210N;  /* θhole[rad] 210 */
+            TH_hole = DEG150N;  /* θhole[rad] 210 */
             break;
         }
         THdc = TH_hole + dTH_hole;
@@ -2015,11 +1942,11 @@ void  int_carrier_m1(void)
             break;
         case 3:
             TH_hole = 0.0;//   //0.0
-           // S6_MODE=S5_MODE;
+            S6_MODE=S5_MODE;
             break;
         case 4:
             TH_hole = DEG060N; //60
-            S6_MODE=S5_MODE;
+
             break;
         case 5:
             TH_hole = DEG120N;  //120
@@ -2576,7 +2503,7 @@ void  int_carrier_m1(void)
     /* 回転方向 */
     /* R_DR -> 1:正転，0:逆転 */
     /* ---------------------- */
-   /*  if(VMODE_z2 == VMODE_z1) {}
+    /* if(VMODE_z2 == VMODE_z1) {}
      else
      {
          if(VMODE_z2 < VMODE_z1)

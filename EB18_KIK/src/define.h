@@ -63,7 +63,7 @@
 // 電流・電圧制限値
 #define I1_LIM		(100.0)		// 電流指令最大値[A]15.0
 #define V1_LIM		(24.0)		// 電圧指令最大値[V]7.0 */
-#define	NRPM_MIN	(20000)		// 位相補間を始める回転数[r/min]IPMSM  3.5[rpm]
+#define	NRPM_MIN	(10)		// 位相補間を始める回転数[r/min]IPMSM  3.5[rpm]
 #define m1_LIM		(1.27)		// 変調律最大値 1.27
 #endif
 

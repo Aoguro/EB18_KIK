@@ -30,6 +30,7 @@ volatile unsigned short cflag1, cflag2;
 volatile unsigned long countc2=0, count2p=0, count2s;
 
 static const int TbUVW[8] = {1, 2, 4, 3, 6, 1, 5, 1};
+volatile unsigned short Run;
 
 //*****************************************************************************
 //*****************************************************************************
@@ -1025,6 +1026,7 @@ void main(void)
 
 
     // PORTE.DR.BIT.B5=1;
+    Run = 0;
     work_init_m1();			// work initialize MOTOR-1
     work_init_m2();			// work initialize MOTOR-2
 
@@ -1096,9 +1098,13 @@ void  int_carrier_m1(void)
     /* DRV_sts 設定 */
     /* ------------ */
     SW = SW_in();/* SW1の入力 */
-    if (SW==1)/* Gate OFF DRV_sts=0 */
-    {
-        DRV_sts = 0;
+    // if (SW==1)/* Gate OFF DRV_sts=0 */
+
+    if(DRV_sts == 0) {
+        if(fabs(vr1_ad) > 0.001) {
+            DRV_sts = 3;
+        }
+        else {}
         s_LPF_N = 0.0;
         s_LPF_N2 = 0.0;
         s_kiASR = I_ref_q_ini;
@@ -1109,16 +1115,14 @@ void  int_carrier_m1(void)
         s_kiPLL = 0.0;
         s_kiACR_d = 0.0;
         s_kiACR_q = 0.0;
-
         Nrpm_ref = 0.0;
-        jth=0.06;
     }
-    else
-    {
-        DRV_sts = 3;
-        jth=0.03;
+    else {
+        if(fabs(vr1_ad) < 0.001) {
+            DRV_sts = 0;
+        }
+        else {}
     }
-
     /* -------------------- */
     /* 電流，電圧検出値処理 */
     /* -------------------- */
@@ -1408,28 +1412,40 @@ void  int_carrier_m1(void)
 
 
     // if(jNorm==1){   //hidari
-
     //  Rot=0;
     //  vr1_ad=vr2_ad*(0.5 + Rotate);
-    if(fabs(vr2_ad) > jth) {
-        if(vr2_ad > 0) {
-            R_DR = 0;      // CW
-            vr1_ad = vr2_ad - jth;
-            if(vr1_ad < 0) {
-                vr1_ad = 0;
+
+    if(Run == 0) {
+        jth = 0.06;
+        if(fabs(vr2_ad) > jth) {
+            Run = 1;
+            if(vr2_ad > 0) {
+                R_DR = 0;      // CW
+                vr1_ad = vr2_ad - jth;
+                if(vr1_ad < 0) {
+                    vr1_ad = 0;
+                }
+            }
+            else {
+                R_DR = 1;
+                vr1_ad = vr2_ad + jth;
+                if(vr1_ad > 0) {
+                    vr1_ad = 0;
+                }
             }
         }
-        else {
-            R_DR = 1;
-            vr1_ad = vr2_ad + jth;
-            if(vr1_ad > 0) {
-                vr1_ad = 0;
-            }
-        }
-    }
         else {
             vr1_ad = 0;
         }
+    }
+        else {
+            jth = 0.03;
+            if(fabs(vr2_ad) < jth) {
+                Run = 0;
+                vr1_ad = 0;
+            }
+        }
+
 
         /*  if(vr2_ad>jth){
           vr1_ad=vr2_ad-jth;

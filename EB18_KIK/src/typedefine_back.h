@@ -36,6 +36,3 @@ typedef signed long _SDWORD;
 typedef unsigned long _UDWORD;
 typedef signed long long _SQWORD;
 typedef unsigned long long _UQWORD;
-
-typedef float _FLOAT;
-typedef double _DOUBLE;
