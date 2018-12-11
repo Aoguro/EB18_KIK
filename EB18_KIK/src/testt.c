@@ -31,7 +31,7 @@ unsigned long dtc_table[256]; // caution allignment 0x000
 
 volatile unsigned long countc1=0, count1p=0, count1s=0;
 volatile unsigned short cflag1, cflag2;
-volatile unsigned long countc2=0, count2p=0, count2s;
+volatile unsigned long countc2=0, count2p=0, count2s=0;
 
 // HALL IC ENCODE TABLE
 static const _UBYTE TbUVW[8] = {1, 2, 4, 3, 6, 1, 5, 1};
@@ -421,9 +421,9 @@ float   vdc_ad_2;
 float   vrx2,vry2;
 
 float   refu_2, refv_2, refw_2;
-float   offset_u_2 =0.4; /*0.295;/* Iuのオフセット値 */
-float   offset_v_2 =0.4; /*0.23;/* Ivのオフセット値 */
-float   offset_w_2 =0.4; /*0.23;/* Iwのオフセット値 */
+float   offset_u_2 =0.5; /*0.295;/* Iuのオフセット値 */
+float   offset_v_2 =0.5; /*0.23;/* Ivのオフセット値 */
+float   offset_w_2 =0.5; /*0.23;/* Iwのオフセット値 */
 float   refi_2 = 0;
 float   refs_2 = 2.0f;
 float   Ra_2   = 1.1f;
@@ -453,7 +453,7 @@ float	dTH_hole_2 = 0.0; /* ホール信号との補正位相 ω1・ΔTic  */
 unsigned char  HUVW_2;/* サンプリング開始時のHole ICの状態 */
 unsigned char  V_MODE_2 = 1;/* PWMモード */
 unsigned char  TH_sin_on_2 = 1;/* Y150814 位相補間オン */
-unsigned char  S6_MODE_2 = 1;/* 0: -sin, 1:6step, 2:+sin */
+unsigned char  S6_MODE_2 = 1,S5_MODE_2=1,S6_MODE_2_p=1.0;;/* 0: -sin, 1:6step, 2:+sin */
 
 float	Vdc0_2 = 0.0;   /* d軸電圧指令 */
 float	Vqc0_2 = 0.0;   /* q軸電圧指令 */
@@ -668,7 +668,6 @@ unsigned char UVW_in(void)
 
     if(R_DR==1) {
         temp8 = ((temp8 + 2) % 6)+1 ;
-      // temp8 = ((temp8 + 2) % 6) ;
        
     }
     else {}
@@ -688,6 +687,7 @@ unsigned char UVW_in_m2(void)
       temp8 = (temp8+temp8) + V_in();
       temp8 = (temp8+temp8) + U_in();
     }*/
+#if 0
     if(vr2_ad_2 <- jth) { //||(Rotate_2<-0.1)){ //vr1_ad_2 0604
         temp8 = U_in_m2();                //U
         temp8 = (temp8+temp8) + W_in_m2();//W
@@ -700,6 +700,19 @@ unsigned char UVW_in_m2(void)
         temp8 = (temp8+temp8) + U_in_m2(); //U
     }
     else {}
+#else
+    temp8 = W_in_m2();                 //W
+    temp8 = (temp8+temp8) + V_in_m2(); //V
+    temp8 = (temp8+temp8) + U_in_m2(); //U
+
+    temp8 = TbUVW[temp8];
+
+    if(R_DR==1) {
+        temp8 = ((temp8 + 2) % 6)+1 ;
+       
+    }
+    else {}
+#endif 
     return temp8;
 }
 
@@ -1079,6 +1092,31 @@ void Period_Motor1(void)
     count1p = count1s;
     Nrpm = (float)(cNrpm_P / t_cnt);	// cNrpm_P=60/cPole*96000000/cTr2; @@ 180528
 }
+
+void Period_Motor2(void)
+{
+    count2s = countc2;
+    TC_cnt_Hole_2=count2s;
+    // if(cflag1 == 1) {
+    /*  if((count1s - count1p)>65535) {//65535
+         cflag1 = 0;
+          t_cnt = 1;
+      }
+      else {*/
+    t_cnt_2 = count2s - count2p;
+    if(t_cnt_2>1000) {
+        t_cnt_2=1000;
+
+    }
+    //}
+    /* }
+     else {
+         cflag1 = 1;
+     }*/
+    count2p = count2s;
+    Nrpm_2 = (float)(cNrpm_P / t_cnt_2);	// cNrpm_P=60/cPole*96000000/cTr2; @@ 180528
+}
+
 //*****************************************************************************
 //*****************************************************************************
 // MOTOR-1 山谷割込み処理 int_carrier subroutine
@@ -2723,7 +2761,8 @@ void	int_carrier_m2(void)
 {
     ICU.IR[0x5C].BIT.IR = 0;//0x69
     /* HoleIC PLL */
-    TC_cnt_Ts_2 = MTU2.TCNT;		// MTU2のカウンタ値 	// @***** S
+    //TC_cnt_Ts_2 = MTU2.TCNT;		// MTU2のカウンタ値 	// @***** S
+    TC_cnt_Ts_2 = countc2;
 
 
 //    LED1_set(1);		//	// @*****
@@ -2771,6 +2810,7 @@ void	int_carrier_m2(void)
     while (S12AD0.ADCSR.BIT.ADST==1) {
         nop();    // @*****
     }
+#if 0
     while (AD0.ADCSR.BIT.ADST==1) {
         nop();    //0712
     }
@@ -2783,7 +2823,8 @@ void	int_carrier_m2(void)
     anY2 = AD0.ADDRC;// JoyStick Y2			// Vu
 
     an103_2 = S12AD1.ADDR3;			// VR1 Y@@ 180528
-    an003_2 = S12AD0.ADDR3;                       // VR1 X@@ 180528
+    an003_2 = S12AD0.ADDR3;
+#endif                                       // VR1 X@@ 180528
     /* 電流は谷割込みのみ有効 */
     if(YT_cnt_2 == 1)  /* Y150614 */
     {
@@ -2799,16 +2840,19 @@ void	int_carrier_m2(void)
     }
 
     /* 相電流 */
-    iu_ad_2  = -((float)(an000_2 - 2048))/(4096.0f) - offset_u_2;/*  */
-    iv_ad_2  = -((float)(an102_2 - 2048))/(4096.0f) - offset_v_2;/*  */
-    iw_ad_2  = -((float)(an001_2 - 2048))/(4096.0f) - offset_w_2;/*  */
+    iu_ad_2  = -((float)(an000_2 - 2048))/(57.344f*4) - offset_u_2;/*  */
+    iv_ad_2  = -((float)(an102_2 - 2048))/(57.344f*4) - offset_v_2;/*  */
+    iw_ad_2  = -((float)(an001_2 - 2048))/(57.344f*4) - offset_w_2;/*  */
 
-
+#if 0
     vr2_adi_2=-((an103_2-fyi_2)/ydiv);
     Rotatei_2 =((an003_2-fxi_2)/xdiv);
-
-    vr2_ad_2 += (vr2_adi_2- vr2_ad_2 )*LPF_ad_2;
-    Rotate_2 += (Rotatei_2-Rotate_2)*LPF_ad_2;
+#else
+    vr2_ad_2=vr2_ad;
+    Rotate_2 =Rotate;
+#endif
+   // vr2_ad_2 += (vr2_adi_2- vr2_ad_2 )*LPF_ad_2;
+  //  Rotate_2 += (Rotatei_2-Rotate_2)*LPF_ad_2;
 
     /************Initialize*******************/
 
@@ -2824,36 +2868,37 @@ void	int_carrier_m2(void)
             PORTE.DR.BIT.B5=0;
             work_init_m2();
 
-            kpACR_2 =0;// 0.0665;	/* 比例ゲイン 100[rad/s]*/
-            kiACR_2 =0;// 0.00165;	/* 積分ゲイン 100[rad/s] 2018.4.16 変更*/
-
+         /*   kpACR_2 =0;// 0.0665;
+            kiACR_2 =0;// 0.00165;
             kpASR_2 =0;//0.084;//Speed
             kiASR_2= 0;//=0.0015;
-            Power2=0;
+            Power2=0;*/
 
         }
         else {
             PORTE.DR.BIT.B5=1;
+            Nref1=cNref1;
         }
     }
     else {
         PORTE.DR.BIT.B5=1;   //Inverter EN
+        Nref1=cNref1;
     }
     /*******************************************************************/
 //    initm2=1;
     /* ボリュームの電圧 */
     //vr2_ad_2 = -((an103 - 2000.0)/4096.0)*power2;	// @@ 17400602
 
-    if(fabs(s_LPF_N_2)>2) {
-        kpACR_2 = 0.55;	//0.0002
-        kiACR_2 = 0.0001;       //0.0005
-        kpASR_2 = 0.0008;//Speed0.0005
-        kiASR_2 = 0.00001;//00001
+    //if(fabs(s_LPF_N_2)>2) {
+        kpACR_2 = 0.002;	//0.0002
+        kiACR_2 = 0.0000006;       //0.0005
+        kpASR_2 = 0.08;//Speed0.0005
+        kiASR_2 = 0.002;//00001
         LPF_ad_2=0.025;//0.025
-        //Power2=0.015;//PowerP;
-        kpPLL_2 = 10.0;
-        kiPLL_2 =0.002;
-    }
+        Power2=0.083333;//PowerP;
+        kpPLL_2 = 40.0;
+        kiPLL_2 =0.02;
+   /* }
     else {
         kpACR_2=0.55;//kpACR_2+0.001;
         kiACR_2=0.0001;//kiACR_2+0.0002;
@@ -2861,9 +2906,11 @@ void	int_carrier_m2(void)
         kiASR_2 =0.000005;// kiASR_2+0.000002;
         LPF_ad_2=0.025;//0.001
         Power2=0.015;//Power2+0.00021;
-    }
+    }*/
 
     /**********************************************************************/
+
+    vr1_ad_2=vr2_ad_2;
     /*    if((vr2_ad_2<(jth+pth))&&(vr2_ad_2>-(jth+pth))){//&&(Rot_2==1)){
     	   if((Rotate_2>jthr)){//||(Rotate_2<-jthr)){
     		   jNorm_2=0;
@@ -2921,7 +2968,7 @@ void	int_carrier_m2(void)
     // Rot_2=0;
     //  vr1_ad_2=vr2_ad_2*(0.5 - Rotate_2);
     // vr1_ad_2=vr2_ad_2;
-    vr1_ad_2=(vr2_ad_2-Rotate_2)*Rp;//vr2_ad_2 - Rotate_2;
+    //vr1_ad_2=(vr2_ad_2-Rotate_2)*Rp;//vr2_ad_2 - Rotate_2;
     //  }
     // else{}
 
@@ -3017,6 +3064,14 @@ void	int_carrier_m2(void)
     /* *********************************************** */
     /* MTU1.TGRBにキャプチャ発生 */
     /* MTU1.TGRAにキャプチャ発生 */
+#if  1
+    if(MTU1.TSR.BIT.TGFA == 1)                   //0606 D
+    {
+        MTU1.TSR.BIT.TGFA = 0;			// @@ 180528 0606D
+        TC_FLG_2 = 1;
+        Period_Motor2();
+    }
+#else
     if(MTU1.TSR.BIT.TGFA == 1)       //0606 B
     {
         TC_cnt_3A_2 = MTU1.TGRA;			// @@ 180528 0606 B
@@ -3053,8 +3108,18 @@ void	int_carrier_m2(void)
         TC_cnt_3A_1_2 = TC_cnt_3A_2;
     }
     else {}
+#endif
+    
+#if  1
+    if(MTU1.TSR.BIT.TGFB == 1)                   //0606 D
+    {
+        MTU1.TSR.BIT.TGFB = 0;			// @@ 180528 0606D
+        TC_FLG_2 = 1;
+        Period_Motor2();
+    }
     /* MTU2.TGRAにキャプチャ発生 */
     /* MTU1.TGRBにキャプチャ発生 */
+#else
     if(MTU1.TSR.BIT.TGFB == 1)
     {
         TC_cnt_3C_2 = MTU1.TGRB;  //0606 MTU2.TGRA
@@ -3089,6 +3154,17 @@ void	int_carrier_m2(void)
         TC_cnt_3C_1_2 = TC_cnt_3C_2;
     }
     else {}
+#endif
+
+#if  1
+    if(MTU2.TSR.BIT.TGFA == 1)                   //0606 D
+    {
+        MTU2.TSR.BIT.TGFA = 0;			// @@ 180528 0606D
+        TC_FLG_2 = 1;
+        Period_Motor2();
+    }
+#else
+
     /* MTU1.TGRAにキャプチャ発生 */
     /* MTU2.TGRAにキャプチャ発生 */
     if(MTU2.TSR.BIT.TGFA == 1)    //0606 MTU1
@@ -3125,6 +3201,8 @@ void	int_carrier_m2(void)
         TC_cnt_1A_1_2 = TC_cnt_1A_2;
     }
     else {}
+#endif
+
     /* 正転，逆転のチェック */
     if(R_DR_2==1)/* 正転 */
     {
@@ -3151,18 +3229,20 @@ void	int_carrier_m2(void)
     {
         if(s_LPF_N_2 > NRPM_MIN)  /* 正転 */
         {
-            S6_MODE_2 = 2;/* 0: -sin, 1:6step, 2:+sin */
+            S6_MODE_2_p = 2;/* 0: -sin, 1:6step, 2:+sin */
+            S5_MODE_2=S6_MODE_2_p;
         }
         else
         {
             if(s_LPF_N_2 < (-NRPM_MIN))  /* 逆転 */
             {
-                S6_MODE_2 = 0;/* 0: -sin, 1:6step, 2:+sin  aki 0 */
+                S6_MODE_2_p = 0;/* 0: -sin, 1:6step, 2:+sin  aki 0 */
+                S5_MODE_2=S6_MODE_2_p;
             }
             else  /* 零付近ウロウロ */
             {
                 S6_MODE_2 = 1;/* 0: -sin, 1:6step, 2:+sin */
-                //I_ref_q_ini=Start; //0602
+                
             }
         }
         //if(vr1_ad_2>0.05){  // vr1_ad_2>0.05 0602
@@ -3254,25 +3334,25 @@ void	int_carrier_m2(void)
         switch (V_MODE_2)
         {
         case 1:
-            TH_hole_2 = DEG150N;  /* θhole[rad] 210 */
+            TH_hole_2 = DEG210N;  /* θhole[rad] 210 */
             break;
         case 2:
-            TH_hole_2 = DEG210N;  /* θhole[rad] 270 */
+            TH_hole_2 = DEG270N;  /* θhole[rad] 270 */
             break;
         case 3:
-            TH_hole_2 = DEG270N;  /* θhole[rad] 330 */
+            TH_hole_2 = DEG330N;  /* θhole[rad] 330 */
             break;
         case 4:
-            TH_hole_2 = DEG330N;  /* θhole[rad] 30 */
+            TH_hole_2 = DEG030N;  /* θhole[rad] 30 */
             break;
         case 5:
-            TH_hole_2 = DEG030N;  /* θhole[rad] 90 */
+            TH_hole_2 = DEG090N;  /* θhole[rad] 90 */
             break;
         case 6:
-            TH_hole_2 = DEG090N;  /* θhole[rad] 150 */
+            TH_hole_2 = DEG150N;  /* θhole[rad] 150 */
             break;
         default:
-            TH_hole_2 = DEG150N;  /* θhole[rad] 210 */
+            TH_hole_2 = DEG210N;  /* θhole[rad] 210 */
             break;
         }
         THdc_2 = TH_hole_2 + dTH_hole_2;
@@ -3330,10 +3410,11 @@ void	int_carrier_m2(void)
         }/**/
     }
     else {}
-    if(S6_MODE_2 == 1)
+
+ if(S6_MODE_2 == 1)
     {
 
-        if(vr2_ad_2>=jth) {
+     //   if(vr2_ad_2>=jth) {
             switch (V_MODE_2)
             {
             case 1:
@@ -3347,6 +3428,7 @@ void	int_carrier_m2(void)
                 break;
             case 4:
                 TH_hole_2 = DEG060N;  //60
+                S6_MODE_2=S5_MODE_2;
                 break;
             case 5:
                 TH_hole_2 = DEG120N;  //120
@@ -3358,7 +3440,7 @@ void	int_carrier_m2(void)
                 TH_hole_2 =DEG240N;  //240
                 break;
             }
-        }
+      /*  }
         else {}
 
         if(vr2_ad_2<-jth) {
@@ -3387,7 +3469,7 @@ void	int_carrier_m2(void)
                 break;
             }
         }
-        else {}
+        else {}*/
         THdc_2 = TH_hole_2;//aki +
         TH_sin_on_2 = 0;
 
@@ -3541,9 +3623,9 @@ void	int_carrier_m2(void)
         Nerr_2 = 0.0;
         break;
     case 3:
-        Nrpm_ref0_2 = Nref1*vr1_ad_2; //aki vr1_ad_2 0602
+        Nrpm_ref0_2 =fabs( Nref1*vr1_ad_2); //aki vr1_ad_2 0602
 
-        if(Nrpm_ref0_2>0) {
+        //if(Nrpm_ref0_2>0) {
             // Nrpm_ref0_2 = Nref1*(vr1_ad_2-0.05);
             if(Nref0_2 > Nrpm_ref0_2)
             {
@@ -3573,8 +3655,21 @@ void	int_carrier_m2(void)
             else {}
             Nrpm_ref_2 = Nref0_2;
 
+           if(R_DR==1){
             Nerr_2 = Nrpm_ref_2 - Nrpm_s_2;
+            }
+            else{
+             Nerr_2 = Nrpm_ref_2 + Nrpm_s_2;
+              }
+        if(Nerr_2>=50) {
+            Nerr_2=50;
         }
+        else {}
+        if(Nerr_2<-50) {
+            Nerr_2=-50;
+        }
+        else {}
+        /*}
         else {}
         if(Nrpm_ref0_2<0) {
             //Nrpm_ref0_2 = Nref1*(vr1_ad_2+0.05);
@@ -3607,7 +3702,7 @@ void	int_carrier_m2(void)
             Nrpm_ref_2 = Nref0_2;
             Nerr_2 =- Nrpm_ref_2 + Nrpm_s_2;//センサ付 aki -
         }
-        else {}
+        else {}*/
         break;
     default:
         break;
@@ -3800,7 +3895,7 @@ void	int_carrier_m2(void)
     /* 回転方向 */
     /* R_DR -> 1:正転，0:逆転 */
     /* ---------------------- */
-    if(VMODE_z2_2 == VMODE_z1_2) {}
+   /* if(VMODE_z2_2 == VMODE_z1_2) {}
     else
     {
         if(VMODE_z2_2 < VMODE_z1_2)
@@ -3821,7 +3916,7 @@ void	int_carrier_m2(void)
                 R_DR_2=0;
             }
         }
-    }
+    }*/
     /* **************** */
     /*     位相更新     */
     /* **************** */
@@ -3951,7 +4046,7 @@ void	Mtu4IntFunc_V(void)	// M-1 MPU4 山谷割込み
     MTU7.TIER.BIT.TCIEV = 1;
     //MTU4.TIER.BIT.TCIEV = 0;
     countc1++;
-
+    countc2++;
 
 }
 
@@ -3984,5 +4079,5 @@ void	Mtu7IntFunc_V(void)	// M-2 MPU7 山谷割込み
     //MTU7.TIER.BIT.TCIEV = 0;
     MTU4.TIER.BIT.TCIEV = 1;
     countc1++;
-
+    countc2++;
 }
