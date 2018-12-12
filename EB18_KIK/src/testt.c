@@ -76,7 +76,7 @@ unsigned short cngs=1;
 float   fy=0,fx=0,fya=0,fxa=0,fyi=1600,fxi=2200;
 float   fy_2=0,fx_2=0,fya_2=0,fxa_2=0,fyi_2=1600,fxi_2=2000;
 float vr2_adi,Rotatei,vr2_adi_2,Rotatei_2,LPF_ad_1=0.001,LPF_ad_2=0.001;
-volatile int iu,iv,iw;
+volatile int iu,iv,iw,iu_2;
 float tmp_vr1;
 /******Current CTL at mode*****/
 /*float Start=5.5;//0.7
@@ -106,8 +106,8 @@ float StV=6.5; //0.35*/
 float	kpPLL = 40.0;
 float	kiPLL =0.02;//0.0015
 //MOTOR-2
-float	kpPLL_2 = 10.0;
-float	kiPLL_2 =0.001;
+float	kpPLL_2 = 40.0;
+float	kiPLL_2 =0.02;
 #endif
 
 #ifdef BLY171S				// BLY171Sモータ選択
@@ -707,7 +707,7 @@ unsigned char UVW_in_m2(void)
 
     temp8 = TbUVW[temp8];
 
-    if(R_DR==0) {
+    if(R_DR==1) {
         temp8 = ((temp8 + 2) % 6)+1 ;
        
     }
@@ -1022,7 +1022,7 @@ void work_init_m2(void)
     VMODE_2=1;
     VMODE_z1_2=1;
     VMODE_z2_2=1;
-    R_DR_2=0;
+    R_DR=0;
 
     YT_cnt_2=1;
     t_cnt_2=0;
@@ -1349,6 +1349,7 @@ void  int_carrier_m1(void)
               else {}*/
 
             work_init_m1();
+            work_init_m2();
             PORTB.DR.BIT.B6=0;
             PORTE.DR.BIT.B5=0;
             // Nref1=0;
@@ -3062,8 +3063,11 @@ void	int_carrier_m2(void)
         Iqc0_2 =  -Iac0_2*SIN0_2 + Ibc0_2*COS0_2; //  -
     }
     else {}
+    iu_2=(int)(1000 * Iqc0_2);//2018
     s_LPF_id0_2 += (Idc0_2 - s_LPF_id0_2)*k_LPF_id0_2;
     s_LPF_iq0_2 += (Iqc0_2 - s_LPF_iq0_2)*k_LPF_iq0_2;
+    
+     
     /* *********************************************** */
     /* [ 1 ] 速度検出↓ */
     /* *********************************************** */
@@ -3209,7 +3213,7 @@ void	int_carrier_m2(void)
 #endif
 
     /* 正転，逆転のチェック */
-    if(R_DR_2==1)/* 正転 1*/
+    if(R_DR==1)/* 正転 1*/
     {
         Nrpm_s_2 = Nrpm_2;//
     }
@@ -3220,7 +3224,7 @@ void	int_carrier_m2(void)
     /* 速度フィルタ */
     s_LPF_N_2 += (Nrpm_s_2 - s_LPF_N_2 )*k_LPF_N_2;
     s_LPF_N2_2 += (Nrpm_s_2 - s_LPF_N2_2 )*k_LPF_N2_2;
-    kaiten_2 +=(Nrpm_s - s_LPF_N )*k_LPF_N;
+    //kaiten_2 +=(Nrpm_s - s_LPF_N )*k_LPF_N;
 
     // f[Hz]= Nrpm*cF_P; 計算定数 cF_P=cPole/60/2; cPole=8;
     Fe1_2 = s_LPF_N_2*cF_P;		// cF_P = 8/60/2=0.06666667;// @*****
@@ -3309,7 +3313,8 @@ void	int_carrier_m2(void)
     }
     else{}*/
 
-    HUVW_2 = UVW_in_m2(); /* Hole IC信号の状態 */
+    V_MODE_2 = UVW_in_m2(); /* Hole IC信号の状態 */
+#if 0  
     switch (HUVW_2)
     {
     case 1:
@@ -3334,7 +3339,8 @@ void	int_carrier_m2(void)
         V_MODE_2 = 1;
         break;
     }
-    if((S6_MODE_2 == 2)&&(TC_FLG_2 == 1))
+#endif
+    if((S5_MODE_2 == 2)&&(TC_FLG_2 == 1))
     {
         switch (V_MODE_2)
         {
@@ -3374,7 +3380,7 @@ void	int_carrier_m2(void)
         }/**/
     }
     else {}
-    if((S6_MODE_2 == 0)&&(TC_FLG_2 == 1))
+    if((S5_MODE_2 == 0)&&(TC_FLG_2 == 1))
     {
         switch (V_MODE_2)
         {
@@ -3594,7 +3600,7 @@ void	int_carrier_m2(void)
     /* ↑ここまで（速度・位相計算） */
     
 
-    switch(DRV_sts)
+    switch(DRV_sts_2)
     {
     case 0:
         s_LPF_N_2 = 0.0;
@@ -3613,7 +3619,7 @@ void	int_carrier_m2(void)
         s_LPF_N2_2 = 0.0;
         break;
     }
-    if (DRV_sts== 0)
+    if (DRV_sts_2== 0)
     {
         Nrpm_2 = 0.0;
         Nrpm_1_2 = 0.0;
@@ -3628,6 +3634,7 @@ void	int_carrier_m2(void)
     {
     case 0:
         Nrpm_ref_2 = 0.0;
+         Nrpm_ref0_2 = 0.0;
         Nerr_2 = 0.0;
         break;
     case 3:
@@ -3663,7 +3670,7 @@ void	int_carrier_m2(void)
             else {}
             Nrpm_ref_2 = Nref0_2;
 
-           if(R_DR==1){
+          if(R_DR==1){
             Nerr_2 = Nrpm_ref_2 - Nrpm_s_2;
             }
             else{
@@ -3743,7 +3750,7 @@ void	int_carrier_m2(void)
         } else {}
     }
     /* ASRの初期値 */
-    if(DRV_sts != 3)
+    if(DRV_sts_2 != 3)
     {
         s_kiASR_2 = I_ref_q_ini_2;
         I_ref_ASR_2 = I_ref_q_ini_2;
@@ -3753,7 +3760,7 @@ void	int_carrier_m2(void)
     /* [ 3 ] 電流制御 ↓ */
     /* *********************************************** */
     /* 電流指令 */
-    switch(DRV_sts)
+    switch(DRV_sts_2)
     {
     case 0: /* 待機状態 */
         I_ref_q_2 = 0; 			/* q軸電流指令 */
@@ -3842,7 +3849,7 @@ void	int_carrier_m2(void)
         m_2 = -m1_LIM;
     }
     else               { /* no code */ }
-    if (DRV_sts == 0) {
+    if (DRV_sts_2 == 0) {
         m_2 = 0.0;
     }
     else       { /* no code */ }
@@ -3860,7 +3867,7 @@ void	int_carrier_m2(void)
     /* モードの更新 */
     /* ------------ */
     UVW_2 = UVW_in_m2(); /* センサ付・ホールIC信号 */
-    switch(DRV_sts)
+    switch(DRV_sts_2)
     {
     case 0:
         VMODE_2 = 1;
