@@ -40,6 +40,21 @@ volatile _UBYTE Run = 0;
 // Accelaration limit := 100 RPM/SECOND
 volatile _FLOAT dS_dt = (1000.0 / 20000);//100.0
 //float dS_dt = (100.0 / 20000);
+
+/****************************************
+ * Addition 2018.12.13 By MK
+ ****************************************/
+// Right - Left 感度パラメター
+// 左右の動作感度調整：0.2は20%となる。
+// 右と左が逆ならば、RateRLを -0.2 にする。
+
+_FLOAT RateRL = 0.5;
+
+// Motor1 & 2
+struct mp {
+    _FLOAT  vr1_ad;
+} mp[2];
+
 //*****************************************************************************
 //*****************************************************************************
 // MOTOR-1 MOTOR-2共通
@@ -1510,14 +1525,17 @@ void  int_carrier_m1(void)
 
         if(fabs(vr2_ad) > jth) {
             Run = 1;
+            
 
             if(vr2_ad > 0) {
                 R_DR = 1;       // CCW
+               // R_DR_2=1;
                 tmp_vr1 = vr2_ad - jth;
                 //tmp_vr1 = (tmp_vr1 < 0.0)? 0.0 : tmp_vr1;
             }
             else if(vr2_ad < 0) {//vr1
                 R_DR = 0;       // CW
+               // R_DR_2=0;
                 tmp_vr1 = vr2_ad + jth;
                 //tmp_vr1 = (tmp_vr1 > 0.0)? 0.0 : tmp_vr1;
             }
@@ -1557,7 +1575,46 @@ void  int_carrier_m1(void)
     }
     
 #endif
-    vr1_ad = vr2_ad;
+
+#if 0
+    /****************************************/
+    /* Direction Control                    */
+    /****************************************/
+    if(vr2_ad > 0.00001) {
+        mp[0].vr1_ad = vr2_ad + RateRL * Rotate;
+        mp[0].vr1_ad = max(mp[0].vr1_ad, 0.0);
+        mp[1].vr1_ad = vr2_ad - RateRL * Rotate;
+        mp[1].vr1_ad = max(mp[1].vr1_ad, 0.0);
+    }
+    else if(vr2_ad < -0.00001) {
+        mp[0].vr1_ad = vr2_ad + RateRL * Rotate;
+        mp[0].vr1_ad = min(mp[0].vr1_ad, 0.0);
+        mp[1].vr1_ad = vr2_ad - RateRL * Rotate;
+        mp[1].vr1_ad = min(mp[1].vr1_ad, 0.0);
+    }
+    /****************************************/
+    /* Spinning Control                     */
+    /****************************************/
+    else if(fabs(Rotate) > 0.00001) {
+        mp[0].vr1_ad = Rotate;
+        mp[1].vr1_ad = -Rotate;
+    }
+    else { }
+#else
+  if(vr2_ad<-0.01){
+    vr1_ad=vr2_ad+Rotate* RateRL;  
+   }
+   else if(vr2_ad>0.01){
+    vr1_ad=(vr2_ad+Rotate* RateRL)*0.5; 
+   }
+   else if(fabs(Rotate)>0.00001){
+     //vr1_ad= Rotate; 
+   }
+   else{}
+   
+   
+    
+#endif
     //vr1_ad_2=-vr1_ad;
     //////////////////////////////
     //  End of Run_Control      //
@@ -2301,7 +2358,7 @@ void  int_carrier_m1(void)
         	else{}
         */
 
-        Nrpm_ref0 = fabs(Nref1 * vr1_ad); //aki  Nref1 MAX Speed -
+        Nrpm_ref0 = fabs(Nref1 * (vr1_ad)); //aki  Nref1 MAX Speed -
         //Nrpm_ref0 = Nref1*-0.5;
         // if(Nrpm_ref0>0) {
         // Nrpm_ref0 = Nref1*(vr1_ad-0.05);
@@ -2913,9 +2970,32 @@ void	int_carrier_m2(void)
         LPF_ad_2=0.025;//0.001
         Power2=0.015;//Power2+0.00021;
     }*/
-
+#if 1
+     vr2_ad_2= - vr2_ad;
     /**********************************************************************/
-
+     if(vr2_ad_2 >0) {
+               
+                R_DR_2=1;
+                
+    }
+    else{    
+                R_DR_2 =0;       
+    }
+    
+    
+   if(vr2_ad_2<-0.01){
+    vr1_ad_2=(vr2_ad_2+Rotate* RateRL)*0.5;  
+   }
+   else if(vr2_ad_2>0.01){
+    vr1_ad_2=vr2_ad_2+Rotate* RateRL; 
+   }
+   else if(fabs(Rotate)>0.00001){
+    // vr1_ad_2= Rotate; 
+    // Power2=-Power2;
+   }
+   else{}
+  //vr1_ad_2=vr2_ad_2;
+#endif
    // vr1_ad_2=-vr1_ad;
     /*    if((vr2_ad_2<(jth+pth))&&(vr2_ad_2>-(jth+pth))){//&&(Rot_2==1)){
     	   if((Rotate_2>jthr)){//||(Rotate_2<-jthr)){
@@ -3213,13 +3293,13 @@ void	int_carrier_m2(void)
 #endif
 
     /* 正転，逆転のチェック */
-    if(R_DR==1)/* 正転 1*/
+    if(R_DR_2==1)/* 正転 1*/
     {
         Nrpm_s_2 = Nrpm_2;//
     }
     else/* 逆転 */
     {
-        Nrpm_s_2 = -Nrpm_2;  //aki -Nrpm
+        Nrpm_s_2 = -Nrpm_2;  //aki -Nrpm 20181213
     }
     /* 速度フィルタ */
     s_LPF_N_2 += (Nrpm_s_2 - s_LPF_N_2 )*k_LPF_N_2;
@@ -3638,11 +3718,11 @@ void	int_carrier_m2(void)
         Nerr_2 = 0.0;
         break;
     case 3:
-        Nrpm_ref0_2 =fabs( Nref1*(vr1_ad)); //aki vr1_ad_2 0602
+        Nrpm_ref0_2 =fabs( Nref1*(vr1_ad_2)); //aki vr1_ad_2 0602
 
-        //if(Nrpm_ref0_2>0) {
+       // if(Nrpm_ref0_2>0) {
             // Nrpm_ref0_2 = Nref1*(vr1_ad_2-0.05);
-            if(Nref0_2 > Nrpm_ref0_2)
+        if(Nref0_2 > Nrpm_ref0_2)
             {
                 Nref0_2 -= dN_HI_N; //aki -
                 if(Nref0_2 < Nrpm_ref0_2)
@@ -3670,11 +3750,11 @@ void	int_carrier_m2(void)
             else {}
             Nrpm_ref_2 = Nref0_2;
 
-          if(R_DR==1){
-            Nerr_2 = Nrpm_ref_2 - Nrpm_s_2;
+          if(R_DR_2==1){
+            Nerr_2 = Nrpm_ref_2 - Nrpm_s_2;//-
             }
             else{
-             Nerr_2 = Nrpm_ref_2 + Nrpm_s_2;
+             Nerr_2 = Nrpm_ref_2 + Nrpm_s_2;//+
               }
         if(Nerr_2>=50) {
             Nerr_2=50;
@@ -3684,9 +3764,9 @@ void	int_carrier_m2(void)
             Nerr_2=-50;
         }
         else {}
-        /*}
-        else {}
-        if(Nrpm_ref0_2<0) {
+        //}
+       // else {}
+      /*  if(Nrpm_ref0_2<0) {
             //Nrpm_ref0_2 = Nref1*(vr1_ad_2+0.05);
             if(Nref0_2 < Nrpm_ref0_2)//minus
             {
@@ -3716,6 +3796,14 @@ void	int_carrier_m2(void)
             else {}
             Nrpm_ref_2 = Nref0_2;
             Nerr_2 =- Nrpm_ref_2 + Nrpm_s_2;//センサ付 aki -
+            
+        if(Nerr_2>=50) {
+            Nerr_2=50;
+           }
+        else {}
+        if(Nerr_2<-50) {
+            Nerr_2=-50;
+           }
         }
         else {}*/
         break;
@@ -3985,9 +4073,9 @@ void	int_carrier_m2(void)
         break;
     }
     /* PWM Vuvw -> Muvw */
-    refu_2 = Vuc1_2*Power2;
-    refv_2 = Vvc1_2*Power2;
-    refw_2 = Vwc1_2*Power2;
+    refu_2 = Vuc1_2*(-Power2);
+    refv_2 = Vvc1_2*(-Power2);
+    refw_2 = Vwc1_2*(-Power2);
     /*  if((vr2_ad_2>jth)){//||(Rcnt_2>jthr)){  //0604
       refu_2 = Vuc1_2*Power2; //vr1_ad_2
       refv_2 = Vvc1_2*Power2;
